@@ -894,11 +894,12 @@ typedef struct A11yMatchItem {
      * walking into them, not a press, takes them. */
     bool loose;
     /* The game's own test says pressing the button would take it now
-     * (ftpickupitem_800942A0, light and heavy items asked for): in the box
-     * in front of you, so facing away puts it out of reach, and while you
-     * hold an item only a healing one is in reach. The test's single
-     * nearest answer, so at most one item has it, and none while you are
-     * out. */
+     * (ftpickupitem_800942A0): in the box in front of you, so facing away
+     * puts it out of reach. On the ground A picks it up, light or heavy,
+     * and while you hold an item only a healing one is in reach; in the air
+     * Z catches it, a light item only, and nothing is in reach while you
+     * hold one, as Z then throws it. The test's single nearest answer, so
+     * at most one item has it, and none while you are out. */
     bool within_reach;
     /* The slot whose fighter holds it (Item.xDC8_word.flags.x13), -1 for
      * none: lying about, flying after a throw, or held by no fighter. */

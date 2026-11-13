@@ -91,8 +91,10 @@ included.
     menu closes.
   - **Item's position cue.** A blip at a steady pace from the nearest item
     lying loose, placed as the appearance cue is, from you or on the stage.
-    It quickens while the item is within reach, where pressing A would pick
-    it up: face the item and get close. It stops when no item is left lying
+    It quickens while the item is within reach: face the item and get close.
+    On the ground pressing A then picks it up. In the air only a light item
+    is within reach, and only while your hands are empty: Z catches it there,
+    since A is an aerial attack. It stops when no item is left lying
     about, and keeps going while you hold one, following the others. A
     Starman or a Mushroom never quickens it, since you take one by walking
     into it.

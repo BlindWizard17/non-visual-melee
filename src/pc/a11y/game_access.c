@@ -1273,15 +1273,21 @@ static int match_item_holder(const Item* ip) {
 
 /* The items in the fork's sense, nearest to you first (A11yMatchState.items),
  * and the one within your reach while you are in play. The reach test is the
- * game's own (ftpickupitem_800942A0), which the pickup itself makes: it
- * walks the item list and reads the fighter's pickup boxes, writing nothing
- * and drawing no random number, so a call between ticks leaves no trace. */
+ * game's own (ftpickupitem_800942A0), which the take itself makes: it walks
+ * the item list and reads the fighter's pickup boxes, writing nothing and
+ * drawing no random number, so a call between ticks leaves no trace. On the
+ * ground it asks for light and heavy items, as A's pickup does
+ * (ftpickupitem_80094790); in the air for light items alone, and only with
+ * empty hands, as Z's air catch does (ftCo_800D7100), A there being an
+ * aerial. */
 static void match_items(int your_slot, const Fighter* you, A11yMatchState* out) {
     HSD_GObj* reach = NULL;
-    if (!out->you.out) {
-        HSD_GObj* entity = Player_GetEntity(your_slot);
-        if (entity != NULL) {
+    HSD_GObj* entity = out->you.out ? NULL : Player_GetEntity(your_slot);
+    if (entity != NULL) {
+        if (you->ground_or_air == GA_Ground) {
             reach = ftpickupitem_800942A0(entity, 3);
+        } else if (you->item_gobj == NULL) {
+            reach = ftpickupitem_800942A0(entity, 1);
         }
     }
     float distances[A11Y_MATCH_ITEMS]; /* squared, beside items */
