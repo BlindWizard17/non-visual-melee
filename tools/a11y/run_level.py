@@ -21,7 +21,8 @@ times.json beside the transcripts:
           and takes the save it makes, corrupted; challenger runs
           make_save.py first for a save that brings Jigglypuff
   online  css_net.drive at delay 0, delay 10 and over a 100 ms slow link,
-          results_net.drive and match_net.drive (--muted), lan_lobby.drive
+          results_net.drive, match_net.drive and match_items_net.drive
+          (--muted), lan_lobby.drive
           (--lan), direct_call.drive, and direct_back.drive and
           direct_lost.drive (--direct), the last two one after the other
           since both use the ports the router forwards (with --base-b,
@@ -29,8 +30,8 @@ times.json beside the transcripts:
           around each, and direct_call, the fork's game alone, is left
           out)
   NAME    an online run by its name (css_net-delay0, css_net-delay10,
-          css_net-slow, results_net, match_net, lan_lobby, direct_back,
-          direct_lost), else tools/a11y/NAME.drive through drive.py; the
+          css_net-slow, results_net, match_net, match_items_net, lan_lobby,
+          direct_back, direct_lost), else tools/a11y/NAME.drive through drive.py; the
           names given in a row run side by side
 
   python tools/a11y/run_level.py lan_lobby --base-b ../melee-pc-base/build
@@ -71,7 +72,7 @@ ARGS = {"launcher_home": ["--launcher", "--muted"], "launcher_settings": ["--lau
         "port_menu": ["--muted"], "port_menu_a11y": ["--muted"],
         "port_menu_voices": ["--muted"], "match_port_menu": ["--muted"], "direct_call": ["--muted"],
         "match_damage": ["--muted"], "match_thresholds": ["--muted"], "match_stocks": ["--muted"],
-        "match_stock_steal": ["--muted"], "match_time": ["--muted"],
+        "match_stock_steal": ["--muted"], "match_time": ["--muted"], "match_items_vs": ["--muted"],
         # The memory card prompts: the run's own card, empty ("--card=", since
         # the script follows and --card alone would take it as a save), or none.
         "memcard_create": ["--card="], "memcard_no": ["--card="], "memcard_no_card": ["--scene", ""]}
@@ -129,6 +130,8 @@ ABSENT = {"sss_skipped": re.compile(r'"Stage select\.'),
           "results": re.compile(READY), "results_teams": re.compile(READY),
           # A count of 0 is the game's announcer's to call.
           "match_stock_steal": re.compile(r'\[a11y\] voice \w+( \(off\))?: "([^"]*, )?0 stocks"'),
+          # An item kind the fork has no name for, said or taken.
+          "match_items_vs": re.compile(r"\[a11y\] (item appearance|match announcement): no name for item kind"),
           # A cancelled match has no places and no Bonuses page.
           "results_no_contest": re.compile(r'\[a11y\] speak .*("Bonuses\.|\b[1-4](st|nd|rd|th)\b)|' + READY),
           # Four CPUs: nobody is "you", in speech or in your voice.
@@ -237,7 +240,7 @@ NET = [("css_net-delay0", ["--delay", "0"]), ("css_net-delay10", ["--delay", "10
 # copies on one machine"), so both take those ports and run one at a time.
 DIRECT = ["direct_back", "direct_lost"]
 FORWARDED_PORTS = "forwarded"
-NET_RUNS = [name for name, _ in NET] + ["results_net", "match_net", "lan_lobby"] + DIRECT
+NET_RUNS = [name for name, _ in NET] + ["results_net", "match_net", "match_items_net", "lan_lobby"] + DIRECT
 ONLINE = NET_RUNS + ["direct_call"]
 # Each run's time the last time it passed, kept beside the transcripts, so a
 # set starts its longest runs first and ends on short ones.
@@ -303,6 +306,11 @@ def net_run(name, out_dir, base_b):
         return Run(name, [sys.executable, os.path.join(HERE, "drive_net.py"), "--muted", *extra,
                           "--port", "42170", "--key", "a11ylevelmatch", "--out-dir", out,
                           os.path.join(HERE, "match_net.drive")], out, 2)
+    if name == "match_items_net":
+        # Muted, so the cues and the voices run as for a player.
+        return Run(name, [sys.executable, os.path.join(HERE, "drive_net.py"), "--muted", *extra,
+                          "--port", "42180", "--key", "a11ylevelitems", "--out-dir", out,
+                          os.path.join(HERE, "match_items_net.drive")], out, 2)
     if name in DIRECT:
         return Run(name, [sys.executable, os.path.join(HERE, "drive_net.py"), "--direct", "--muted", *extra,
                           "--out-dir", out, os.path.join(HERE, name + ".drive")], out, 2,

@@ -405,7 +405,7 @@ The game caps how many may lie about at once by hold kind: 40 common items and 1
 Every item is created by `Item_8026862C` (`src/melee/it/item.c`), through `Item_80268B18` for one in the air and `Item_80268B5C` for one on the ground.
 
 - **Item switch spawns** come from a countdown in `fn_8026C88C` (`src/melee/it/itspawn.c`), which picks a kind and a spawn point and creates the item in the air with a sparkle; it then falls to the ground.
-- **Containers** (capsules, crates, barrels, eggs) drop their contents through `it_8026F3D4` (`itdrop.c`), with a small hop.
+- **Containers** (capsules, crates, barrels, eggs) drop their contents through `it_8026F3D4` (`itdrop.c`), with a small hop. A container breaks when it is hit or thrown. Its contents are new items, on the list from the tick it breaks, where it was, rising at 1.25 to 2.5 units a tick; a Capsule leaves the list on the same tick, a Crate a little later, as it plays its breaking. A Party Ball thrown by a CPU opened and dropped four items on one tick, which the fork said as one line and played on four voices (measured with items at Very High on Final Destination, 2026-11-13).
 - A spawn count, `it_804D6D0C`, goes up for these and for other things that appear on stage (a Party Ball's contents, Chansey's eggs, Whispy's apples); projectiles do not count.
 
 Measured on Battlefield with items at Very High: a Party Ball appeared at (56, 55.9) above the right platform and settled at (56, 34.0); a Proximity Mine appeared at (-24, 71.8) and landed on the left platform. An item's `pos` is not its bottom: on a platform at y = 27.2, items rested at y = 29.2 to 34.
@@ -413,7 +413,7 @@ Measured on Battlefield with items at Very High: a Party Ball appeared at (56, 5
 - **The serial** (`x1C`) comes from a counter, `it_804D6D10`, set to 0 as a match's items are set up and raised for every item made, projectiles included, so serials only grow within a match, and a new item is one whose serial was not there last tick.
 - **The appearing tick** (the items spec's open question 3): an item shows on the list on the tick it is made, where it came in. An item switch spawn is made before the items' own updates run, so on its first tick it has had one tick of gravity, 0.07 units below its spawn point (measured on Fourside). Training's spawn is made after them, at your feet, and only on its next tick rises about 2.4 units onto the ground's surface.
 - **Training's item menu** (open question 5): A on Item makes the item at once, while the menu holds the match. A Training pause stands the fighters still but not the items: while the menu stays open, an item made then settles, and a Mushroom walks off. Not every kind settles where it was made: a Ray Gun lay at your x, but a Food came to rest about 5 units to one side or the other, which side changing from run to run (measured on Final Destination, 2026-11-13), so a cue relative to you places it beside you rather than centred.
-- **With items on**: a VS match started from character select has items on at the rules' default frequency, so the drive scripts' VS matches meet them (a Capsule after about 12 seconds on Fourside, measured); the debug match (`MELEE_DEBUG_VS`) has them off, since `onEnterDebugVs` sets `item_freq` to -1.
+- **With items on**: a VS match started from character select has items on at the rules' default frequency, Medium, so the drive scripts' VS matches meet them (a Capsule after about 12 seconds on Fourside, measured); the debug match (`MELEE_DEBUG_VS`) has them off, since `onEnterDebugVs` sets `item_freq` to -1, and no environment variable changes that. At Very High, set on Item Switch's frequency strip, Final Destination gets an item every three or four seconds from spawn points 25 units apart, and a level 9 CPU takes one within about half a minute (`tools/a11y/match_items_vs.drive`).
 
 ### Held, thrown, loose
 
@@ -424,7 +424,7 @@ The item's flag word `xDC8_word.flags` holds its part in a pickup:
 - **`x15`, grabbable**, with a pickup callback (`Item_IsGrabbable`): set while the item lies loose and again after a throw, so a flying thrown item can be caught, and is in reach of the test below.
 - **`xF`, who has held it**, one bit per slot in a four-bit field, so slots 4 and 5 never mark it. Never cleared while the item lives.
 
-So the fork's **loose** is grabbable, or a touch item, and neither held nor thrown. A new item falling in is loose and can be in reach, though not always from its first tick: in a VS run the item's position cue started on a Lip's Stick's first tick, but on a Barrel's about ten ticks after it appeared (seen in the log, not probed).
+So the fork's **loose** is grabbable, or a touch item, and neither held nor thrown. A light item falling in from the item switch is grabbable from its first tick, in the air, and can be in reach. A heavy one is not grabbable until it lands: a Crate dropped from 45 units up became loose about 25 ticks after it appeared, as it touched the floor, and a Party Ball likewise (measured with a temporary probe on Final Destination, 2026-11-13); a Barrel and a Barrel Cannon did the same in the log. So the item's position cue follows a heavy item only once it has landed.
 
 ### Taking an item
 
@@ -444,7 +444,7 @@ So the fork's **loose** is grabbable, or a touch item, and neither held nor thro
 
 ### Item rules
 
-`StartMeleeRules.item_freq` is -1 when items are off and 0 to 4 for Very Low to Very High; `Item_80266F3C()` asks "items on?". Stage items and character items exist even with items off. Ranked online play forces items off.
+`StartMeleeRules.item_freq` is -1 when items are off and 0 to 4 for Very Low to Very High; `Item_80266F3C()` asks "items on?". Stage items and character items exist even with items off. Online, a session plays player 1's VS rules, items included (`netplay.md`, "Rules in a session"); Ranked forces items off (`rankedRules`, `gmonlinemode.c`).
 
 ## Sizes measured
 
@@ -502,6 +502,6 @@ Everything in the table can also be had by polling once a tick and comparing wit
 
 ## Open questions
 
-- **Predicted ticks online.** Whether an announcement waits for its tick to be confirmed, at the cost of a few ticks' delay, or speaks at once and occasionally reports a hit that rollback undoes. Still open for the match announcements' stocks, said on their tick, so a KO that rollback undoes is said; their damage waits out the settle time (`.scratch/match-announcements/spec.md`, "Online").
+- **Predicted ticks online.** Whether an announcement waits for its tick to be confirmed, at the cost of a few ticks' delay, or speaks at once and occasionally reports a hit that rollback undoes. Still open for the match announcements' stocks, said on their tick, so a KO that rollback undoes is said; their damage waits out the settle time (`.scratch/match-announcements/spec.md`, "Online"). Items' appearances and pickups are said at once too, so a take that rollback undoes is said (`.scratch/items/spec.md`, "Online"); none has been noticed in a run.
 - **Ledge grabs and held items** were not observed in the probe: where a held item's `pos` sits is unchecked, and the holder's position is a safe stand-in.
 - **Most stages' state fields** beyond Pokémon Stadium and Brinstar are unnamed in the decomp.

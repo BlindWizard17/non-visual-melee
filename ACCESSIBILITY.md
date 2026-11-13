@@ -5,9 +5,9 @@ Non-Visual Melee is an accessibility fork of
 Bros. Melee. It aims to make the game playable by blind players. Menus are read
 aloud through your screen reader. In a match, announcements in two voices and
 audio cues tell you where you and your opponents are, warn of gaps and ledges,
-and keep you up to date on damage and stocks. You can play online over LAN and
-Direct Connect against both Non-Visual Melee and melee-pc players on the same
-version.
+keep you up to date on damage and stocks, and lead you to items. You can play
+online over LAN and Direct Connect against both Non-Visual Melee and melee-pc
+players on the same version.
 
 It doesn't claim parity with sighted players: the game's speed, the precision it
 asks for and the complexity of its stages make that out of reach. Even so, I
@@ -96,6 +96,25 @@ included.
     about, and keeps going while you hold one, following the others. A
     Starman or a Mushroom never quickens it, since you take one by walking
     into it.
+- **Items.** With items on, in VS. Mode, Training and online, you hear each
+  item come in: your screen reader names it and the appearance cue chimes
+  where it is. The item's position cue then leads you to the nearest one
+  lying about, and each item a player takes is said in that player's voice.
+  The items are the ones Item Switch lists, containers such as the Capsule,
+  Crate and Barrel included, and whatever comes out of a broken container.
+  A heavy item, such as a Crate, is followed only once it has landed.
+  - **The settings.** Under Match announcement settings, Item appearances and
+    Item pickups switch the two announcements. Under Cue settings, Appearance
+    cue and Item's position cue each have a switch, a volume and a Preview,
+    and Items relative to you chooses whether both cues place an item from
+    you, the default, or on the stage.
+  - **The sounds** are stand-ins for now, a chime and a short blip, to be
+    replaced by recorded ones.
+  - **Not yet:** a character's own items, such as Peach's turnips and Link's
+    bombs, Pokémon from a Poké Ball, and stage hazards. An item that
+    disappears or is used up is not said either.
+  - **Online** matches have items at player 1's Item Switch settings, as
+    offline; Ranked plays without items.
 
 ### What is not included
 
@@ -157,7 +176,9 @@ These parts of the game are not accessible yet:
   stage such as Final Destination: one flat floor with no platforms is the
   easiest place to get used to the cues. Final Destination is locked at first;
   Unlock everything, in the Gameplay category of the launcher's Settings,
-  unlocks it along with all the characters and other stages.
+  unlocks it along with all the characters and other stages. The Training
+  menu's Item row brings an item in beside you, a good way to learn the item
+  cues.
 - **Play a match.** When you are ready, choose Melee in VS. Mode and set up a
   match against a CPU opponent.
 

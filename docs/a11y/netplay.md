@@ -114,6 +114,10 @@ Online, each player picks a stage on their own, the picks are exchanged, and a c
 - A copy reads the other's pick only once its own preview has shown, about 1.5 seconds after its own pick, so the player who picks second hears the result that long after.
 - For a given pair of picks the coin flip depends on the seed alone, so a script with a fixed seed always gets the same side's pick.
 
+## Rules in a session
+
+A session's matches are VS matches on player 1's rules. As the session starts, player 1's copy sends its rules (`rules_capture` and `rules_apply` in `src/pc/net_handshake.c`: Custom Rules, the item frequency and Item Switch's kinds, the stage switch) and player 2's applies them, putting its own back when the session ends; a change on character select's rules header in the session reaches both, since both copies run the same menus. So items are on online as offline, at player 1's frequency, and both copies drop the same items, which the session's sync check would catch otherwise: `match_items_net.drive` sets Very High from the rules header and stays in sync against a fork and a base port build. LAN play, Direct Connect and Unranked start their sessions the same way (read in the code; the drive run's session starts at boot). Ranked alone overrides the rules, items off among them (`rankedRules` in `src/melee/gm/gmonlinemode.c`).
+
 ## A base port build to play against
 
 A fork build and a base port build pair when their protocol version, version string and disc match; the fork keeps the base port's version string for this. To test against the base port, build the commit of the fork's last base merge from `upstream/master` in a git worktree with its own build directory, leaving the fork's `build/` alone, and run `drive_net.py --base-b <its build directory>`. The base port says nothing, so a script's steps addressed to `b-fork` wait on b's speech and those addressed to `b-base` wait on scene changes or sleep instead.
