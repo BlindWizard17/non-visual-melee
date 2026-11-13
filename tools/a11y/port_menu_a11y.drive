@@ -5,10 +5,11 @@
 # D-pad, Your position cue off and on again with Left and Right, Preview
 # your position cue played by A and stopped by B, which goes back to the
 # opening row; Cue settings opened again by Right, Up past its first row to
-# Ledge warning distance, a step down and back; Match announcement settings
-# opened by Enter, every row read and round, Voice settings inside it opened
-# by A, every row read and round, Up past its first row to its last, Left on
-# that Preview back to Voice settings' row and B back to the top level; the
+# Preview appearance cue and on to Ledge warning distance, a step down and
+# back; Match announcement settings opened by Enter, every row read and
+# round, Voice settings inside it opened by A, every row read and round, Up
+# past its first row to its last, Left on that Preview back to Voice
+# settings' row and B back to the top level; the
 # menu closed by F1 from inside Cue settings and opened again by the
 # gamepad's Back at the top level; and Resume closing the menu, with the
 # run's a11y.ini checked after each change. Waits on each announcement, so a
@@ -47,9 +48,9 @@ wait '"Cues, On, Left and right to change\. Turns every cue on or off\."$'
 key Down
 wait "\"Cue settings, Enter to open\. Cue volume, and each cue's switch, volume and preview\.\"$"
 key Down
-wait '"Match announcements, On, Left and right to change\. Says what the HUD shows during a match: your damage and stocks in your voice, everyone else.s in the opponents. voice, and the time left on the screen reader\."$'
+wait '"Match announcements, On, Left and right to change\. Says what happens in a match: your damage and stocks in your voice, everyone else.s in the opponents. voice, and the time left and the items that appear on the screen reader\."$'
 key Down
-wait '"Match announcement settings, Enter to open\. The voices, and what is announced: damage, stocks, teammates and the time left\."$'
+wait '"Match announcement settings, Enter to open\. The voices, and what is announced: damage, stocks, teammates, the time left and items\."$'
 key Down
 wait '"Resume, button\. Close settings and return to the game\."$'
 
@@ -96,7 +97,9 @@ wait "\"Preview opponent's position cue: Play, button\. Plays a short sample of 
 key Down
 wait "\"Opponent's position cue relative to you, On, Left and right to change\. On, the opponent's position cue sounds where the opponent is from you: on your left or right, above or below you; off, where they are on the stage\.\"$"
 key Down
-wait "\"Position cues follow the camera, On, Left and right to change\. On, the cues pan across what the camera shows; off, across the whole stage to the side blast zones\. With the opponent's position cue relative to you, it changes only your position cue\.\"$"
+wait '"Items relative to you, On, Left and right to change\. On, the item cues sound where an item is from you: on your left or right, above or below you; off, where it is on the stage\."$'
+key Down
+wait "\"Position cues follow the camera, On, Left and right to change\. On, the cues pan across what the camera shows; off, across the whole stage to the side blast zones\. Cues relative to you are left alone\.\"$"
 key Down
 wait '"Gap warning, On, Left and right to change\. A low, steady hum while you are in the air with no floor below you, where falling straight down would knock you out\."$'
 key Down
@@ -111,6 +114,12 @@ key Down
 wait '"Preview ledge warning: Play, button\. Plays a short sample of the ledge warning, as it sounds in a match\."$'
 key Down
 wait '"Ledge warning distance, slider, 40 units\. Left and right to adjust\. How far from the edge the warning starts, in stage units\. Final Destination is about 170 wide\."$'
+key Down
+wait '"Appearance cue, On, Left and right to change\. A chime where an item appears in a match: from you or, with Items relative to you off, on the stage\."$'
+key Down
+wait '"Appearance cue volume, slider, 100%\. Left and right to adjust\. The loudness of the appearance cue, under the cue volume\."$'
+key Down
+wait '"Preview appearance cue: Play, button\. Plays a short sample of the appearance cue, as it sounds in a match\."$'
 key Down
 wait '"Cue volume, slider, 100%\. '
 
@@ -148,10 +157,13 @@ wait '\[a11y\] cue your position preview stop '
 wait "\"Cue settings, Enter to open\. Cue volume, and each cue's switch, volume and preview\.\"$"
 
 # Cue settings again by Right, on its first row; Up past it wraps to the
-# last, Ledge warning distance, a step down and back up.
+# last, Preview appearance cue, and three more Up reach Ledge warning
+# distance, a step down and back up.
 key Right
 wait '"Cue settings\. Cue volume, slider, 100%\. '
 key Up
+wait '"Preview appearance cue: Play, button\. '
+key Up Up Up
 wait '"Ledge warning distance, slider, 40 units\. '
 key Left
 wait '\[a11y\] accessibility settings: saved ledge_warning\.distance = 39$'
@@ -186,6 +198,8 @@ wait "\"Teammates, On, Left and right to change\. Says your teammates' damage an
 key Down
 wait '"Time left, On, Left and right to change\. Says the time left at each whole minute and at 30 seconds, in a match whose timer counts down\."$'
 key Down
+wait '"Item appearances, On, Left and right to change\. Says each item as it appears in a match, by name, on the screen reader\."$'
+key Down
 wait '"Voice settings, Enter to open\. '
 
 # Voice settings opened with the gamepad's A: its own name alone, then its
@@ -216,7 +230,7 @@ wait "\"Preview opponents' voice: Play, button\. "
 key Left
 wait "\"Voice settings, Enter to open\. Your voice and the opponents' voice: each one's voice, rate, volume and a preview\.\"$"
 gamepad b
-wait '"Match announcement settings, Enter to open\. The voices, and what is announced: damage, stocks, teammates and the time left\."$'
+wait '"Match announcement settings, Enter to open\. The voices, and what is announced: damage, stocks, teammates, the time left and items\."$'
 
 # The menu closed from inside Cue settings by F1, and opened again by the
 # gamepad's Back on the category, whose rows open at the top level.

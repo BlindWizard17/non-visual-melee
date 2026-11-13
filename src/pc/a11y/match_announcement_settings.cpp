@@ -36,11 +36,13 @@ DamageMode damage_mode(const Choice& choice) {
 
 MatchAnnouncementSettings::MatchAnnouncementSettings(ValueModel& model)
     : m_on(group(model).add_switch(SwitchSpec{"on", "Match announcements",
-          "Says what the HUD shows during a match: your damage and stocks in your voice, everyone "
-          "else's in the opponents' voice, and the time left on the screen reader.",
+          "Says what happens in a match: your damage and stocks in your voice, everyone else's in "
+          "the opponents' voice, and the time left and the items that appear on the screen "
+          "reader.",
           true, true})),
       m_menu(group(model).add_menu(MenuSpec{"settings", "Match announcement settings",
-          "The voices, and what is announced: damage, stocks, teammates and the time left."})),
+          "The voices, and what is announced: damage, stocks, teammates, the time left and "
+          "items."})),
       m_voice_menu(group(model, &m_menu)
               .add_menu(MenuSpec{"voices", "Voice settings",
                   "Your voice and the opponents' voice: each one's voice, rate, volume and a "
@@ -72,6 +74,10 @@ MatchAnnouncementSettings::MatchAnnouncementSettings(ValueModel& model)
                   "Says the time left at each whole minute and at 30 seconds, in a match "
                   "whose timer counts down.",
                   true, true})),
+      m_item_appearances(group(model, &m_menu)
+              .add_switch(SwitchSpec{"item_appearances", "Item appearances",
+                  "Says each item as it appears in a match, by name, on the screen reader.", true,
+                  true})),
       m_settle(group(model).add_number(NumberSpec{"damage_settle", "Damage settle time",
           "How long a player's damage must hold still before it is said, so a combo says only "
           "where it ends.",
@@ -87,6 +93,7 @@ MatchAnnouncementValues MatchAnnouncementSettings::values() const {
     values.opponents_stocks = m_opponents_stocks.on();
     values.teammates = m_teammates.on();
     values.time_left = m_time_left.on();
+    values.item_appearances = m_item_appearances.on();
     values.settle =
         std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(m_settle.value()));
     return values;

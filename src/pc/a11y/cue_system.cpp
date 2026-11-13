@@ -4,11 +4,13 @@
 #include "cue_engine.hpp"
 #include "cue_output.hpp"
 #include "cue_settings.hpp"
+#include "cue_sounds.hpp"
 #include "game_access.h"
 #include "match_cues.hpp"
 #include "pc/pc.h"
 #include "speech.hpp"
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace a11y {
@@ -61,7 +63,10 @@ std::unique_ptr<CueSystem> CueSystem::open(
     system->m_cue_settings = std::make_unique<CueSettings>(settings.model());
     /* Each cue registers its values here, before the file is read, so a
      * value the file lacks is added to it. */
-    system->m_match_cues = std::make_unique<MatchCues>(*system->m_cue_settings, *system->m_engine);
+    MatchCueSounds sounds;
+    sounds.item_appearance = load_sound(cue_sound_folder() + "item_appearance.wav");
+    system->m_match_cues =
+        std::make_unique<MatchCues>(*system->m_cue_settings, *system->m_engine, std::move(sounds));
     system->m_cue_settings->apply(*system->m_engine);
     return system;
 }
@@ -79,7 +84,7 @@ void CueSystem::poll_settings() {
 
 void CueSystem::scene_entered() {
     m_match_running = false;
-    m_match_cues->silence();
+    m_match_cues->scene_entered();
     /* Before the hook polls the settings file, so an error it finds now
      * counts as said in this scene. */
     m_problems_at_scene = m_settings.problems_spoken();
@@ -152,6 +157,10 @@ void CueSystem::tick(int local_port, bool online, uint64_t held_mask) {
     }
     m_match_running = match.running;
     m_match_cues->tick(match);
+}
+
+std::span<const A11yMatchItem> CueSystem::items_appeared() const {
+    return m_match_cues->items_appeared();
 }
 
 }  // namespace a11y

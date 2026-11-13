@@ -110,6 +110,8 @@ target_sources(melee PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/position_cue.cpp
         ${CMAKE_CURRENT_LIST_DIR}/gap_warning.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ledge_warning.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/item_frame.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/item_appearance.cpp
         ${CMAKE_CURRENT_LIST_DIR}/match_cues.cpp)
 target_include_directories(melee PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
@@ -641,6 +643,22 @@ if (TARGET unit_tests)
     set_tests_properties(ledge_warning PROPERTIES LABELS melee)
     add_dependencies(unit_tests ledge_warning_test)
 
+    # Items appearing against hand-written match snapshots: new items, the
+    # announcement over a fake bridge, the appearance cue's driver, the item
+    # cues' frame and the preview's moments; its own pc_log_line.
+    add_executable(item_appearance_test EXCLUDE_FROM_ALL
+            ${CMAKE_CURRENT_LIST_DIR}/test_item_appearance.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_appearance.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_frame.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/position_cue.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_names.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/speech.cpp)
+    target_include_directories(item_appearance_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
+    target_compile_options(item_appearance_test PRIVATE -UNDEBUG)
+    add_test(NAME item_appearance COMMAND item_appearance_test)
+    set_tests_properties(item_appearance PROPERTIES LABELS melee)
+    add_dependencies(unit_tests item_appearance_test)
+
     # The match cues against hand-written match snapshots, their voices
     # rendered into buffers with no device, and the menus' rows with the
     # switches first; its own pc_log_line.
@@ -648,6 +666,9 @@ if (TARGET unit_tests)
             ${CMAKE_CURRENT_LIST_DIR}/test_match_cues.cpp
             ${CMAKE_CURRENT_LIST_DIR}/match_cues.cpp
             ${CMAKE_CURRENT_LIST_DIR}/position_cue.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_frame.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_appearance.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_names.cpp
             ${CMAKE_CURRENT_LIST_DIR}/gap_warning.cpp
             ${CMAKE_CURRENT_LIST_DIR}/ledge_warning.cpp
             ${CMAKE_CURRENT_LIST_DIR}/cue_settings.cpp

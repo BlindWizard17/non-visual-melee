@@ -37,6 +37,19 @@ struct YourMapping {
     float near_distance = 10.0f;
 };
 
+/* Where something is from you rather than on the stage: the opponent's
+ * position cue relative to you and the item cues (item_frame.hpp) each keep
+ * a copy. World units from you to its side where the pan is full, the pan
+ * level with you, so the side is always heard, how far past you it goes
+ * before a pulse changes sides, and how far above or below you the pitch
+ * reaches the pitch range's ends. */
+struct RelativeMapping {
+    float side_distance = 80.0f;
+    float pan_floor = 0.2f;
+    float crossing_margin = 4.0f;
+    float height_distance = 60.0f;
+};
+
 /* The opponent's position cue's mapping, as its settings hold it. */
 struct OpponentMapping {
     StageMapping stage;
@@ -47,14 +60,8 @@ struct OpponentMapping {
      * the horizontal distance, pitch from the vertical, the stage mapping's
      * pitch range kept and its pan frame left aside. */
     bool relative = true;
-    /* Relative only. World units from you to the opponent's side where the
-     * pan is full, the pan level with you, so the side is always heard,
-     * how far past you the opponent goes before the pulse changes sides,
-     * and how far above or below you the pitch reaches the range's ends. */
-    float side_distance = 80.0f;
-    float pan_floor = 0.2f;
-    float crossing_margin = 4.0f;
-    float height_distance = 60.0f;
+    /* Relative only. */
+    RelativeMapping from_you;
 };
 
 /* Pan for an x, linear from the left blast zone, -1 and beyond, to the
@@ -94,14 +101,14 @@ int opponent_side(float dx, int last_side, float margin);
 
 /* The relative pan for a horizontal distance on a side: the floor level
  * with you, linear in the distance to full at the side distance and
- * beyond. */
-float relative_pan(float dx, int side, const OpponentMapping& mapping);
+ * beyond. Side 0 is the centre, whatever the distance. */
+float relative_pan(float dx, int side, const RelativeMapping& mapping);
 
-/* The relative pitch as playback rate for a vertical distance (opponent
- * minus you): linear in octaves, the cue's own pitch level with you,
+/* The relative pitch as playback rate for a vertical distance (it minus
+ * you): linear in octaves, the cue's own pitch level with you,
  * pitch_range/2 octaves up at the height distance above and beyond, as
  * many down as far below. */
-float relative_pitch(float dy, const OpponentMapping& mapping);
+float relative_pitch(float dy, float pitch_range, const RelativeMapping& mapping);
 
 /* The opponent's position cue's driver: in the stage mode a function of
  * the snapshot alone; relative to you it keeps the opponent's side, its

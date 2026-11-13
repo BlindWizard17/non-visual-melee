@@ -71,6 +71,8 @@ struct MatchAnnouncementValues {
     bool teammates = true;
     /* Off, each minute passes unsaid. */
     bool time_left = true;
+    /* Off, items appear unsaid (AppearanceAnnouncement, item_appearance.hpp). */
+    bool item_appearances = true;
     /* How long a figure must hold still before it is said. */
     Clock::duration settle = std::chrono::milliseconds(600);
 };

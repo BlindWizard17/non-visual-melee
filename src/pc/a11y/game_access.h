@@ -914,6 +914,9 @@ typedef struct A11yMatchState {
      * event's scripted freeze. A slow-motion mode's skipped ticks are not
      * paused; they only hold the fighters. */
     bool paused;
+    /* GAME! or TIME! has come (A11yMatchHud.decided): the match is over,
+     * though its last ticks run on. Training never comes to it. */
+    bool decided;
     /* The fighters' updates did not run this tick: paused, or a skipped
      * tick of slow motion. */
     bool fighters_held;

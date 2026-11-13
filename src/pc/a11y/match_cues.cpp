@@ -16,6 +16,7 @@ constexpr std::string_view kYourId = "your_position";
 constexpr std::string_view kOpponentId = "opponent_position";
 constexpr std::string_view kGapId = "gap_warning";
 constexpr std::string_view kLedgeId = "ledge_warning";
+constexpr std::string_view kAppearanceId = "item_appearance";
 
 /* A short click lifted under its volume to sit level with held tones. */
 constexpr float kYourBoost = 2.0f;
@@ -25,6 +26,13 @@ constexpr float kOpponentBoost = 3.0f;
 constexpr float kGapBoost = 1.0f;
 /* The ledge warning's chord, as tuned by ear. */
 constexpr float kLedgeBoost = 1.6f;
+/* A prepared file peaks just under full scale (prepare_sounds.py): no lift
+ * until heard beside the others. */
+constexpr float kAppearanceBoost = 1.0f;
+
+/* After the last play of the appearance cue's preview has sounded, a
+ * little more before it ends, so the end's stop finds nothing playing. */
+constexpr double kAppearancePreviewTail = 0.1;
 
 /* The tick of your position cue, the Star Fox 64 fork's aim click: a
  * 1500 Hz sine decaying fast over 20 ms, its last 3 ms faded to silence,
@@ -168,6 +176,18 @@ VoiceSpec position_voice(const char* name, int cue, Sound sound, float fastest_i
     return voice;
 }
 
+/* The appearance cue's one-shot, held to the lowest pitch the widest pitch
+ * range gives. */
+VoiceSpec appearance_voice(int cue, Sound sound) {
+    VoiceSpec voice;
+    voice.name = "item appearance";
+    voice.cue = cue;
+    voice.sound = std::move(sound);
+    voice.mode = VoiceMode::one_shot;
+    voice.lowest_pitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
+    return voice;
+}
+
 /* A voice's twin for the preview: the same sound and limits, named apart
  * in the log, sounding past the switches, and alone: the preview's two
  * ledge voices never sound together. */
@@ -191,7 +211,18 @@ YourMapping MatchCues::YourValues::mapping(bool pan_to_camera) const {
 
 OpponentMapping MatchCues::OpponentValues::mapping(bool pan_to_camera) const {
     return OpponentMapping{stage.mapping(pan_to_camera), interval.value(), relative.on(),
-        side_distance.value(), pan_floor.value(), crossing_margin.value(), height_distance.value()};
+        RelativeMapping{side_distance.value(), pan_floor.value(), crossing_margin.value(),
+            height_distance.value()}};
+}
+
+ItemMapping MatchCues::ItemValues::mapping(bool pan_to_camera) const {
+    ItemMapping mapping;
+    mapping.relative = relative.on();
+    mapping.stage = StageMapping{pan_to_camera, pitch_range.value()};
+    mapping.from_you.side_distance = side_distance.value();
+    mapping.from_you.pan_floor = pan_floor.value();
+    mapping.from_you.height_distance = height_distance.value();
+    return mapping;
 }
 
 GapMapping MatchCues::GapValues::mapping() const {
@@ -237,6 +268,7 @@ MatchCues::YourValues MatchCues::add_your_values(ValueGroup group) {
 
 MatchCues::OpponentValues MatchCues::add_opponent_values(ValueGroup group) {
     const OpponentMapping defaults;
+    const RelativeMapping& from_you = defaults.from_you;
     StageValues stage = add_stage_values(group);
     return OpponentValues{
         stage,
@@ -249,20 +281,48 @@ MatchCues::OpponentValues MatchCues::add_opponent_values(ValueGroup group) {
             defaults.relative, true}),
         group.add_number(NumberSpec{"side_distance", "Side distance",
             "Relative to you: how far to your side the opponent sounds fully to that side.",
-            "units", defaults.side_distance, 10.0f, 300.0f, 5.0f}),
+            "units", from_you.side_distance, 10.0f, 300.0f, 5.0f}),
         group.add_number(NumberSpec{"pan_floor", "Pan floor",
             "Relative to you: how far to the side the opponent sounds when level with you, so "
             "their side is always heard; at the side distance it is fully to that side.",
-            "", defaults.pan_floor, 0.0f, 1.0f, 0.05f}),
+            "", from_you.pan_floor, 0.0f, 1.0f, 0.05f}),
         group.add_number(NumberSpec{"crossing_margin", "Crossing margin",
             "Relative to you: how far past you the opponent goes before their pulse changes "
             "sides, so it does not flicker while you overlap.",
-            "units", defaults.crossing_margin, 0.0f, 30.0f, 0.5f}),
+            "units", from_you.crossing_margin, 0.0f, 30.0f, 0.5f}),
         group.add_number(NumberSpec{"height_distance", "Height distance",
             "Relative to you: how far above or below you the pitch reaches the top or bottom of "
             "the pitch range; level with you it is the cue's own pitch. Battlefield's top "
             "platform is about 54 units above its main floor.",
-            "units", defaults.height_distance, 10.0f, 300.0f, 5.0f}),
+            "units", from_you.height_distance, 10.0f, 300.0f, 5.0f}),
+    };
+}
+
+/* The item cues' own copies of the opponent's distances, at its defaults. */
+MatchCues::ItemValues MatchCues::add_item_values(ValueGroup group) {
+    const ItemMapping defaults;
+    const RelativeMapping& from_you = defaults.from_you;
+    return ItemValues{
+        group.add_switch(SwitchSpec{"relative", "Items relative to you",
+            "On, the item cues sound where an item is from you: on your left or right, above or "
+            "below you; off, where it is on the stage.",
+            defaults.relative, true}),
+        group.add_number(NumberSpec{"pitch_range", "Pitch range",
+            "How many octaves the item cues' pitch spans: relative to you, from the height "
+            "distance below you to as far above; on the stage, from the bottom blast zone to the "
+            "top of the camera's view. Level with you, or midway, it is the cue's own pitch.",
+            "", defaults.stage.pitch_range, 0.0f, kWidestPitchRange, 0.1f}),
+        group.add_number(NumberSpec{"side_distance", "Side distance",
+            "Relative to you: how far to your side an item sounds fully to that side.", "units",
+            from_you.side_distance, 10.0f, 300.0f, 5.0f}),
+        group.add_number(NumberSpec{"pan_floor", "Pan floor",
+            "Relative to you: how far to the side an item sounds when right beside you, so "
+            "its side is heard; at the side distance it is fully to that side.",
+            "", from_you.pan_floor, 0.0f, 1.0f, 0.05f}),
+        group.add_number(NumberSpec{"height_distance", "Height distance",
+            "Relative to you: how far above or below you the pitch reaches the top or bottom of "
+            "the pitch range; level with you it is the cue's own pitch.",
+            "units", from_you.height_distance, 10.0f, 300.0f, 5.0f}),
     };
 }
 
@@ -298,7 +358,7 @@ MatchCues::LedgeValues MatchCues::add_ledge_values(ValueGroup group) {
     };
 }
 
-MatchCues::MatchCues(CueSettings& settings, CueEngine& engine)
+MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds sounds)
     : m_engine(engine),
       m_your_cue(settings.add_cue(std::string(kYourId), "Your position cue",
           "A tick that pans with where you are across the stage, rises in pitch the higher you "
@@ -310,11 +370,11 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine)
           "nearest opponent is, from you or, with relative to you off, on the stage.",
           kOpponentBoost)),
       m_opponent(add_opponent_values(m_opponent_cue.group)),
+      m_items(add_item_values(settings.add_shared("item_cues", "Item cues"))),
       m_pan_to_camera(settings.add_shared("position_cues", "Position cues")
               .add_switch(SwitchSpec{"pan_to_camera", "Position cues follow the camera",
                   "On, the cues pan across what the camera shows; off, across the whole stage to "
-                  "the side blast zones. With the opponent's position cue relative to you, it "
-                  "changes only your position cue.",
+                  "the side blast zones. Cues relative to you are left alone.",
                   StageMapping{}.pan_to_camera, true})),
       m_gap_cue(settings.add_cue(std::string(kGapId), "Gap warning",
           "A low, steady hum while you are in the air with no floor below you, where falling "
@@ -325,7 +385,11 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine)
           "A pulsing chord on the left or right as you near an edge with nothing below it, "
           "louder and closer to the centre the nearer you get.",
           kLedgeBoost)),
-      m_ledge(add_ledge_values(m_ledge_cue.group)) {
+      m_ledge(add_ledge_values(m_ledge_cue.group)),
+      m_appearance_cue(settings.add_cue(std::string(kAppearanceId), "Appearance cue",
+          "A chime where an item appears in a match: from you or, with Items relative to you "
+          "off, on the stage.",
+          kAppearanceBoost)) {
     VoiceSpec your =
         position_voice("your position", m_your_cue.values.cue, tick_sound(), kFastestInterval);
     VoiceSpec opponent = position_voice(
@@ -347,6 +411,11 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine)
     m_preview_voices.gap = m_engine.add_voice(preview_of(std::move(gap)));
     m_preview_voices.ledge_left = m_engine.add_voice(preview_of(std::move(ledge_left)));
     m_preview_voices.ledge_right = m_engine.add_voice(preview_of(std::move(ledge_right)));
+    m_appearance_seconds = sounds.item_appearance.seconds();
+    VoiceSpec appearance =
+        appearance_voice(m_appearance_cue.values.cue, std::move(sounds.item_appearance));
+    m_appearance_pool.add(m_engine, appearance);
+    m_appearance_preview_pool.add(m_engine, preview_of(std::move(appearance)));
 }
 
 void MatchCues::play(int voice, const std::optional<VoiceTargets>& targets) {
@@ -367,8 +436,15 @@ void MatchCues::silence() {
     {
         play(voice, std::nullopt);
     }
+    m_appearance_pool.stop(m_engine);
     m_opponent_position.forget();
     m_gap_warning.forget();
+}
+
+void MatchCues::scene_entered() {
+    silence();
+    m_new_items.forget();
+    m_appearance.forget();
 }
 
 MatchCues::Preview MatchCues::preview_named(std::string_view id) {
@@ -384,6 +460,9 @@ MatchCues::Preview MatchCues::preview_named(std::string_view id) {
     if (id == kLedgeId) {
         return Preview::ledge;
     }
+    if (id == kAppearanceId) {
+        return Preview::appearance;
+    }
     return Preview::none;
 }
 
@@ -394,6 +473,7 @@ bool MatchCues::preview(std::string_view id, Clock::time_point now) {
     }
     stop_preview(now);
     m_preview = which;
+    m_preview_played = 0;
     m_preview_start = std::max(now, m_preview_quiet);
     preview_frame(now);
     return true;
@@ -407,6 +487,10 @@ void MatchCues::stop_preview(Clock::time_point now) {
             m_engine.stop(voice);
             stopped = true;
         }
+    }
+    if (m_appearance_preview_pool.playing(m_engine)) {
+        m_appearance_preview_pool.stop(m_engine);
+        stopped = true;
     }
     if (stopped) {
         m_preview_quiet = now + kPreviewRestart;
@@ -453,6 +537,11 @@ void MatchCues::preview_frame(Clock::time_point now) {
             return;
         }
         break;
+    case Preview::appearance:
+        if (appearance_preview_frame(seconds, pan_to_camera)) {
+            return;
+        }
+        break;
     case Preview::none:
         return;
     }
@@ -460,8 +549,33 @@ void MatchCues::preview_frame(Clock::time_point now) {
     stop_preview(now);
 }
 
+bool MatchCues::appearance_preview_frame(double seconds, bool pan_to_camera) {
+    const std::array<OneShotPlay, 3> plays = appearance_preview(m_items.mapping(pan_to_camera));
+    double end = 0.0;
+    for (const OneShotPlay& play : plays) {
+        end = std::max(end, play.at + m_appearance_seconds / play.targets.pitch);
+    }
+    while (m_preview_played < plays.size() && seconds >= plays[m_preview_played].at) {
+        m_appearance_preview_pool.trigger(m_engine, plays[m_preview_played].targets);
+        m_preview_played++;
+    }
+    return m_preview_played < plays.size() || seconds < end + kAppearancePreviewTail;
+}
+
 void MatchCues::tick(const A11yMatchState& match) {
     const bool pan_to_camera = m_pan_to_camera.on();
+    /* Each new item's one-shot, where it came in (item_appearance.hpp). A
+     * pause stops the match's voices, a one-shot still sounding among them;
+     * a trigger with no voice, its sound missing, plays nothing. */
+    const std::span<const A11yMatchItem> appeared = m_new_items.tick(match);
+    for (const VoiceTargets& targets :
+        m_appearance.tick(match, appeared, m_items.mapping(pan_to_camera)))
+    {
+        m_appearance_pool.trigger(m_engine, targets);
+    }
+    if (match.paused && m_appearance_pool.playing(m_engine)) {
+        m_appearance_pool.stop(m_engine);
+    }
     play(m_your_voice, your_position(match, m_your.mapping(pan_to_camera)));
     play(m_opponent_voice, m_opponent_position.tick(match, m_opponent.mapping(pan_to_camera)));
     play(m_gap_voice, m_gap_warning.tick(match, m_gap.mapping()));

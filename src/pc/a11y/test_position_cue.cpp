@@ -311,32 +311,34 @@ OpponentMapping relative() {
 
 void the_relative_pan_says_your_side() {
     const OpponentMapping mapping = relative();
-    const float floor = mapping.pan_floor;
+    const float floor = mapping.from_you.pan_floor;
     /* Level with you, at the floor on the side the distance's sign gives;
      * exactly level counts as the right. */
     assert(near(opponent_position(opponent_at(-0.5f, 0.0f), mapping)->pan, -floor, 0.01f));
     assert(near(opponent_position(opponent_at(0.0f, 0.0f), mapping)->pan, floor));
     /* Linear to full at the side distance, held beyond it. */
-    const float half = mapping.side_distance / 2.0f;
+    const float half = mapping.from_you.side_distance / 2.0f;
     std::optional<VoiceTargets> targets = opponent_position(opponent_at(half, 0.0f), mapping);
     assert(targets.has_value() && near(targets->pan, floor + (1.0f - floor) / 2.0f));
-    assert(near(opponent_position(opponent_at(-mapping.side_distance, 0.0f), mapping)->pan, -1.0f));
+    assert(near(opponent_position(opponent_at(-mapping.from_you.side_distance, 0.0f), mapping)->pan,
+        -1.0f));
     assert(near(opponent_position(opponent_at(-200.0f, 0.0f), mapping)->pan, -1.0f));
     /* From you, not from the stage: you off to the left, the opponent at
      * the centre is on your right. */
     A11yMatchState moved = match_at(-60.0f, 0.0f);
     targets = opponent_position(moved, mapping);
     assert(targets.has_value());
-    assert(near(targets->pan, floor + (1.0f - floor) * 60.0f / mapping.side_distance));
+    assert(near(targets->pan, floor + (1.0f - floor) * 60.0f / mapping.from_you.side_distance));
     /* The camera switch leaves it alone. */
     OpponentMapping blast = mapping;
     blast.stage.pan_to_camera = false;
     assert(near(opponent_position(moved, blast)->pan, targets->pan));
     /* No floor: the centre level with you. */
     OpponentMapping no_floor = mapping;
-    no_floor.pan_floor = 0.0f;
+    no_floor.from_you.pan_floor = 0.0f;
     assert(near(opponent_position(opponent_at(0.0f, 0.0f), no_floor)->pan, 0.0f));
-    assert(near(a11y::relative_pan(10.0f, 1, no_floor), 10.0f / mapping.side_distance));
+    assert(near(
+        a11y::relative_pan(10.0f, 1, no_floor.from_you), 10.0f / mapping.from_you.side_distance));
 }
 
 void the_relative_side_holds_through_a_crossing() {
@@ -350,7 +352,7 @@ void the_relative_side_holds_through_a_crossing() {
     assert(a11y::opponent_side(0.0f, 0, margin) == 1);
 
     OpponentMapping mapping = relative();
-    mapping.crossing_margin = margin;
+    mapping.from_you.crossing_margin = margin;
     a11y::OpponentPosition cue;
     /* The opponent walks through you from your right: still on your right
      * 3 units past, near the floor; on your left past the margin. */
@@ -359,8 +361,9 @@ void the_relative_side_holds_through_a_crossing() {
         assert(targets.has_value() && targets->pan > 0.0f);
     }
     std::optional<VoiceTargets> targets = cue.tick(opponent_at(-3.0f, 0.0f), mapping);
-    assert(near(targets->pan,
-        mapping.pan_floor + (1.0f - mapping.pan_floor) * 3.0f / mapping.side_distance));
+    assert(
+        near(targets->pan, mapping.from_you.pan_floor + (1.0f - mapping.from_you.pan_floor) * 3.0f /
+                                                            mapping.from_you.side_distance));
     assert(cue.tick(opponent_at(-5.0f, 0.0f), mapping)->pan < 0.0f);
     /* Back within the margin: the left holds. */
     assert(cue.tick(opponent_at(3.0f, 0.0f), mapping)->pan < 0.0f);
@@ -386,7 +389,7 @@ void the_relative_side_holds_through_a_crossing() {
 
 void the_relative_pitch_says_above_or_below() {
     const OpponentMapping mapping = relative();
-    const float h = mapping.height_distance;
+    const float h = mapping.from_you.height_distance;
     /* Level with you the cue's own pitch, wherever you both are. */
     A11yMatchState level = match_at(-50.0f, 80.0f);
     level.opponents[0] = fighter(1, 30.0f, 80.0f);
@@ -448,11 +451,11 @@ void the_relative_preview_plays_left_then_right() {
      * the third, then three on the right, all level with you. */
     for (double seconds : {0.0, 0.4, 0.55}) {
         std::optional<VoiceTargets> t = a11y::opponent_position_preview(seconds, theirs);
-        assert(t.has_value() && near(t->pan, -theirs.pan_floor) && t->pitch == 1.0f);
+        assert(t.has_value() && near(t->pan, -theirs.from_you.pan_floor) && t->pitch == 1.0f);
     }
     for (double seconds : {0.65, 0.8, 1.6}) {
         std::optional<VoiceTargets> t = a11y::opponent_position_preview(seconds, theirs);
-        assert(t.has_value() && near(t->pan, theirs.pan_floor));
+        assert(t.has_value() && near(t->pan, theirs.from_you.pan_floor));
     }
     assert(!a11y::opponent_position_preview(1.85, theirs).has_value());
 }

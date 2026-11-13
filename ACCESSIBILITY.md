@@ -58,7 +58,9 @@ included.
   about you, and the opponents' voice about everyone else, teammates included.
   They say each player's damage once it settles, either on every change or only
   when it passes a set interval, and each stock lost. Your screen reader says
-  the time left in a timed match, at each whole minute and at 30 seconds. The
+  the time left in a timed match, at each whole minute and at 30 seconds, and
+  names each item as it appears, such as "Bob-omb", or "Food, Food, Maxim
+  Tomato" when several come at once. The
   voices are Windows' own OneCore voices, the ones Narrator uses, Zira for you
   and Mark for the opponents by default. In the accessibility settings you can
   pick any OneCore voice installed on your computer, set each one's rate and
@@ -80,6 +82,11 @@ included.
     floor below you that has a lethal gap past it, louder and nearer the middle
     as you get closer to it. An edge with more floor below it, such as a
     platform's, gives no warning.
+  - **Appearance cue.** A chime where each item appears, from you by default:
+    panned to the side it is on and higher in pitch when it is above you.
+    With Items relative to you off, it pans and pitches with where the item
+    is on the stage instead. An item made from the Training menu chimes as the
+    menu closes.
 
 ### What is not included
 

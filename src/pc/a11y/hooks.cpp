@@ -10,6 +10,7 @@
 #include "launcher_speech.hpp"
 #include "lobby_speech.hpp"
 #include "match_announcement_settings.hpp"
+#include "item_appearance.hpp"
 #include "match_announcer.hpp"
 #include "memcard_speech.hpp"
 #include "menu_speech.hpp"
@@ -71,6 +72,7 @@ std::unique_ptr<a11y::Voices> s_voices;
 std::unique_ptr<a11y::VoiceSettings> s_voice_settings;
 /* The match announcements and their rows, after the voices' rows. */
 std::unique_ptr<a11y::MatchAnnouncer> s_match_announcer;
+std::unique_ptr<a11y::AppearanceAnnouncement> s_appearances;
 std::unique_ptr<a11y::MatchAnnouncementSettings> s_match_settings;
 /* The launcher's master volume with mute applied, kept from before the
  * engine opens. */
@@ -279,6 +281,7 @@ extern "C" void pc_a11y_init(void) {
         std::make_unique<a11y::MemcardSpeech>(*s_speech, game_text, a11y_game_memcard_string);
     s_unlock = std::make_unique<a11y::UnlockSpeech>(*s_speech, game_text, a11y_game_prize_string);
     s_match_announcer = std::make_unique<a11y::MatchAnnouncer>(*s_speech);
+    s_appearances = std::make_unique<a11y::AppearanceAnnouncement>(*s_speech);
     s_settings = std::make_unique<a11y::AccessibilitySettings>(
         *s_speech, settings_file_path(config), config.log);
     /* In the order of the Accessibility category's top level
@@ -353,6 +356,7 @@ extern "C" void pc_a11y_shutdown(void) {
     s_match_settings.reset();
     s_settings.reset();
     s_match_announcer.reset();
+    s_appearances.reset();
     s_results.reset();
     s_memcard.reset();
     s_unlock.reset();
@@ -660,6 +664,11 @@ extern "C" void pc_a11y_match_tick(uint64_t held_mask) {
     }
     if (s_cue_system != nullptr) {
         s_cue_system->tick(local_port, pc_net_active(), held_mask);
+        if (s_appearances != nullptr && s_match_settings != nullptr) {
+            /* The items the cues' tick found new, whatever the cues'
+             * switches: muted cues still tick. */
+            s_appearances->tick(s_cue_system->items_appeared(), s_match_settings->values());
+        }
     }
 }
 

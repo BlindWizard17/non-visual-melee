@@ -106,7 +106,8 @@ ENV = {"launcher_a11y": A11Y_ROWS, "launcher_voices": A11Y_ROWS, "port_menu_a11y
        "match_ledge": {"MELEE_DEBUG_VS": "1", "MELEE_DEBUG_VS_STOCKS": "2"},
        "match_ledge_battlefield": {"MELEE_DEBUG_VS": "1", "MELEE_DEBUG_VS_STOCKS": "2",
                                    "MELEE_DEBUG_VS_STAGE": "31"},
-       "match_port_menu": {"MELEE_DEBUG_VS": "1", "MELEE_DEBUG_VS_STOCKS": "2", "MELEE_A11Y_CUES": "1"}}
+       "match_port_menu": {"MELEE_DEBUG_VS": "1", "MELEE_DEBUG_VS_STOCKS": "2", "MELEE_A11Y_CUES": "1"},
+       "match_items": {"MELEE_A11Y_CUES": "1"}}
 # The port menu's status line says "Saved." after every change,
 # "Settings save automatically." as the menu first opens, and each focus's
 # description, which the focus announcement has said (a category's only
@@ -176,6 +177,10 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
          "memcard_no": [(re.compile(r'\[a11y\] speak \w+ \(off\): "No"$'), 2)],
          # The key on the visit's first notice only.
          "unlock_notices": [(re.compile(r'\[a11y\] speak .*A for next\."$'), 1)],
+         # Two Foods from the Training menu: each said once, and played once,
+         # as the menu closes.
+         "match_items": [(re.compile(r"\[a11y\] cue item appearance \d play "), 2),
+                         (re.compile(r'\[a11y\] speak queue[^:]*: "Food"$'), 2)],
          # The save brings Jigglypuff, named once.
          "challenger": [(re.compile(r'\[a11y\] speak .*A new foe has appeared: Jigglypuff\. A to fight\."$'), 1)]}
 

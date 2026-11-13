@@ -90,7 +90,7 @@ int opponent_side(float dx, int last_side, float margin) {
     return dx < 0.0f ? -1 : 1;
 }
 
-float relative_pan(float dx, int side, const OpponentMapping& mapping) {
+float relative_pan(float dx, int side, const RelativeMapping& mapping) {
     /* 0 level with you, 1 at the side distance. Within the crossing margin
      * past you the distance still counts, on the side kept. */
     const float t = mapping.side_distance > 0.0f ?
@@ -99,14 +99,14 @@ float relative_pan(float dx, int side, const OpponentMapping& mapping) {
     return static_cast<float>(side) * (mapping.pan_floor + (1.0f - mapping.pan_floor) * t);
 }
 
-float relative_pitch(float dy, const OpponentMapping& mapping) {
+float relative_pitch(float dy, float pitch_range, const RelativeMapping& mapping) {
     float t; /* -1 at the height distance below, 1 above */
     if (mapping.height_distance > 0.0f) {
         t = std::clamp(dy / mapping.height_distance, -1.0f, 1.0f);
     } else {
         t = dy > 0.0f ? 1.0f : (dy < 0.0f ? -1.0f : 0.0f);
     }
-    return std::exp2(mapping.stage.pitch_range * 0.5f * t);
+    return std::exp2(pitch_range * 0.5f * t);
 }
 
 std::optional<VoiceTargets> OpponentPosition::tick(
@@ -131,10 +131,11 @@ std::optional<VoiceTargets> OpponentPosition::tick(
         m_slot = opponent.slot;
     }
     const float dx = opponent.x - match.you.x;
-    m_side = opponent_side(dx, m_side, mapping.crossing_margin);
+    m_side = opponent_side(dx, m_side, mapping.from_you.crossing_margin);
     VoiceTargets targets;
-    targets.pan = relative_pan(dx, m_side, mapping);
-    targets.pitch = relative_pitch(opponent.y - match.you.y, mapping);
+    targets.pan = relative_pan(dx, m_side, mapping.from_you);
+    targets.pitch =
+        relative_pitch(opponent.y - match.you.y, mapping.stage.pitch_range, mapping.from_you);
     targets.gain = 1.0f;
     targets.interval = mapping.interval;
     return targets;
@@ -152,7 +153,7 @@ std::optional<VoiceTargets> opponent_position_preview(
          * it sounds. */
         const int left_pulses = preview_pulses(mapping.interval) / 2;
         const double change = (left_pulses - 0.5) * static_cast<double>(mapping.interval);
-        targets->pan = seconds < change ? -mapping.pan_floor : mapping.pan_floor;
+        targets->pan = seconds < change ? -mapping.from_you.pan_floor : mapping.from_you.pan_floor;
     }
     return targets;
 }

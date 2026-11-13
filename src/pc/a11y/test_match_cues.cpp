@@ -8,14 +8,19 @@
  * stops, and its tone loops without a seam; the ledge warning registers
  * last, with the snapshot's edge offset, starts on each side near a deadly
  * end and stops away from it or over a gap, and pulses 5 times a second on
- * its side; silenced for the port menu, every voice stops and the next tick
- * starts the cues afresh. Each cue's preview sounds with every switch off
- * and is silent at a volume of 0, pulses as its moment says, restarts,
- * stops with a ramp, and plays on through the port menu's silence, which
- * still stops the match's voices. This file supplies the pc_log_line that
- * main.c normally provides. */
+ * its side; the item cues' frame registers after the opponent's cue and
+ * the appearance cue after the ledge warning, which plays a one-shot where
+ * each new item comes in, a burst on voices of its own, nothing for an item
+ * there at GO, held through a pause, and silent with its switch off;
+ * silenced for the port menu, every voice stops and the next tick starts
+ * the cues afresh. Each cue's preview sounds with every switch off and is
+ * silent at a volume of 0, pulses as its moment says, restarts, stops with
+ * a ramp, and plays on through the port menu's silence, which still stops
+ * the match's voices. This file supplies the pc_log_line that main.c
+ * normally provides. */
 #include "cue_engine.hpp"
 #include "cue_settings.hpp"
+#include "cue_sounds.hpp"
 #include "match_cues.hpp"
 #include "speech.hpp"
 #include "switches.hpp"
@@ -42,6 +47,18 @@ std::size_t count_logged_starting(const std::string& start) {
         [&](const std::string& line) { return line.rfind(start, 0) == 0; }));
 }
 
+/* A loose item lying about. */
+A11yMatchItem item_at(int serial, float x, float y) {
+    A11yMatchItem it{};
+    it.serial = serial;
+    it.kind = A11Y_It_Kind_Foods;
+    it.x = x;
+    it.y = y;
+    it.loose = true;
+    it.holder = -1;
+    return it;
+}
+
 /* You at the centre, the opponent in slot `slot` at (x, 0). */
 A11yMatchState match_with(int slot, float x) {
     A11yMatchState match{};
@@ -53,17 +70,40 @@ A11yMatchState match_with(int slot, float x) {
     return match;
 }
 
+/* A stand-in for a prepared file: 0.1 s of 1 kHz after the engine's
+ * lead-in, its end faded. */
+a11y::MatchCueSounds test_sounds() {
+    a11y::MatchCueSounds sounds;
+    a11y::Sound& chime = sounds.item_appearance;
+    chime.samples.resize(a11y::kCueRate / 10);
+    for (std::size_t i = 0; i < chime.samples.size(); ++i) {
+        chime.samples[i] = 0.9f * static_cast<float>(std::sin(
+                                      2.0 * std::numbers::pi * 1000.0 * i / a11y::kCueRate));
+    }
+    a11y::fade_out(chime, 0.005f);
+    a11y::lead_in(chime, a11y::kLeadInSeconds);
+    return sounds;
+}
+
 /* The engine with logging, the cue settings at their defaults and the
  * match cues. Each test starts with an empty log. */
 struct Fixture {
     a11y::CueEngine engine{a11y::CueEngineOptions{true, "", ""}};
     a11y::ValueModel model;
     a11y::CueSettings cues{model};
-    a11y::MatchCues match_cues{cues, engine};
+    a11y::MatchCues match_cues{cues, engine, test_sounds()};
 
     Fixture() {
         cues.apply(engine);
         s_lines.clear();
+    }
+
+    /* Only the appearance cue heard, both position cues turned off
+     * underneath. */
+    void items_alone() {
+        model.set(*model.find("your_position.on"), 0.0f);
+        model.set(*model.find("opponent_position.on"), 0.0f);
+        cues.apply(engine);
     }
 
     /* Only the opponent's cue heard, yours turned off underneath. */
@@ -121,12 +161,14 @@ void both_cues_register_and_fit() {
     Fixture f;
     assert(f.match_cues.your_voice() >= 0 && f.match_cues.opponent_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups.size() == 6);
+    assert(groups.size() == 8);
     assert(groups[1].id == "your_position" && groups[2].id == "opponent_position");
     assert(groups[2].title == "Opponent's position cue");
-    /* After both, the value they share, one switch for both pans. */
-    assert(groups[3].id == "position_cues" && groups[3].title == "Position cues");
-    assert(groups[3].values.size() == 1);
+    /* After both, the item cues' frame, then the value they share, one
+     * switch for both pans. */
+    assert(groups[3].id == "item_cues");
+    assert(groups[4].id == "position_cues" && groups[4].title == "Position cues");
+    assert(groups[4].values.size() == 1);
     const a11y::NamedValue* pan_to_camera = f.model.find("position_cues.pan_to_camera");
     assert(pan_to_camera != nullptr && pan_to_camera->kind == a11y::ValueKind::toggle);
     assert(pan_to_camera->default_value == 1.0f);
@@ -163,9 +205,9 @@ void the_gap_warning_registers_after_the_position_cues() {
     Fixture f;
     assert(f.match_cues.gap_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups[4].id == "gap_warning" && groups[4].title == "Gap warning");
+    assert(groups[5].id == "gap_warning" && groups[5].title == "Gap warning");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[4].values) {
+    for (const a11y::NamedValue* named : groups[5].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"gap_warning.on", "gap_warning.volume",
@@ -193,7 +235,7 @@ void the_menus_rows_are_the_specs_rows() {
     a11y::ValueModel model;
     a11y::Switches switches{model, speech, false};
     a11y::CueSettings cues{model};
-    a11y::MatchCues match_cues{cues, engine};
+    a11y::MatchCues match_cues{cues, engine, test_sounds()};
     std::vector<std::string> rows;
     for (const a11y::ShownRow& row : model.shown()) {
         if (row.opens != nullptr) {
@@ -224,6 +266,7 @@ void the_menus_rows_are_the_specs_rows() {
                         "opponent_position.volume Opponent's position cue volume",
                         "preview opponent_position Preview opponent's position cue",
                         "opponent_position.relative Opponent's position cue relative to you",
+                        "item_cues.relative Items relative to you",
                         "position_cues.pan_to_camera Position cues follow the camera",
                         "gap_warning.on Gap warning",
                         "gap_warning.volume Gap warning volume",
@@ -232,6 +275,9 @@ void the_menus_rows_are_the_specs_rows() {
                         "ledge_warning.volume Ledge warning volume",
                         "preview ledge_warning Preview ledge warning",
                         "ledge_warning.distance Ledge warning distance",
+                        "item_appearance.on Appearance cue",
+                        "item_appearance.volume Appearance cue volume",
+                        "preview item_appearance Preview appearance cue",
                     }));
 }
 
@@ -289,13 +335,13 @@ void the_gap_tone_loops_without_a_seam() {
     assert(steepest < loudest * 0.2f);
 }
 
-void the_ledge_warning_registers_last() {
+void the_ledge_warning_registers_after_the_gap_warning() {
     Fixture f;
     assert(f.match_cues.ledge_left_voice() >= 0 && f.match_cues.ledge_right_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups[5].id == "ledge_warning" && groups[5].title == "Ledge warning");
+    assert(groups[6].id == "ledge_warning" && groups[6].title == "Ledge warning");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[5].values) {
+    for (const a11y::NamedValue* named : groups[6].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"ledge_warning.on", "ledge_warning.volume",
@@ -546,7 +592,7 @@ std::vector<float> preview_frames(
  * cue's own. */
 void every_switch_off(Fixture& f) {
     for (const char* key : {"cues.on", "your_position.on", "opponent_position.on", "gap_warning.on",
-             "ledge_warning.on"})
+             "ledge_warning.on", "item_appearance.on"})
     {
         f.model.set(*f.model.find(key), 0.0f);
     }
@@ -741,6 +787,204 @@ void a_preview_plays_on_through_the_port_menus_silence() {
     assert(f.engine.playing(f.match_cues.preview_voices().gap));
 }
 
+void the_item_cues_register_in_their_places() {
+    Fixture f;
+    const auto& groups = f.model.groups();
+    /* The frame both item cues share, beside the opponent's: its switch
+     * shown, its distances tuning values starting at the opponent's. */
+    assert(groups[3].id == "item_cues" && groups[3].title == "Item cues");
+    std::vector<std::string> keys;
+    for (const a11y::NamedValue* named : groups[3].values) {
+        keys.push_back(named->key);
+    }
+    assert((keys == std::vector<std::string>{"item_cues.relative", "item_cues.pitch_range",
+                        "item_cues.side_distance", "item_cues.pan_floor",
+                        "item_cues.height_distance"}));
+    const a11y::NamedValue* relative = f.model.find("item_cues.relative");
+    assert(relative->kind == a11y::ValueKind::toggle && relative->shown);
+    assert(relative->default_value == 1.0f && relative->label == "Items relative to you");
+    for (const char* name : {"pitch_range", "side_distance", "pan_floor", "height_distance"}) {
+        const a11y::NamedValue* ours = f.model.find(std::string("item_cues.") + name);
+        const a11y::NamedValue* theirs = f.model.find(std::string("opponent_position.") + name);
+        assert(ours != nullptr && !ours->shown && ours != theirs);
+        assert(ours->default_value == theirs->default_value);
+    }
+    /* The appearance cue last, its pool and its preview's twins. */
+    assert(groups[7].id == "item_appearance" && groups[7].title == "Appearance cue");
+    keys.clear();
+    for (const a11y::NamedValue* named : groups[7].values) {
+        keys.push_back(named->key);
+    }
+    assert((keys == std::vector<std::string>{
+                        "item_appearance.on", "item_appearance.volume", "item_appearance.boost"}));
+    assert(f.model.find("item_appearance.boost")->default_value == 1.0f);
+    assert(f.match_cues.appearance_voices().size() == a11y::OneShotPool::kSize);
+    assert(f.match_cues.appearance_preview_voices().size() == a11y::OneShotPool::kSize);
+    /* With no sound, no voices, and the rest of the cues as before. */
+    a11y::CueEngine engine{a11y::CueEngineOptions{true, "", ""}};
+    a11y::ValueModel model;
+    a11y::CueSettings cues{model};
+    s_lines.clear();
+    a11y::MatchCues silent{cues, engine};
+    assert(silent.appearance_voices().empty() && silent.appearance_preview_voices().empty());
+    assert(count_logged_starting("[a11y] cue item appearance 1 refused: no sound") == 1);
+    assert(silent.gap_voice() >= 0);
+    A11yMatchState match = match_with(1, 60.0f);
+    silent.tick(match);
+    match.item_count = 1;
+    match.items[0] = item_at(0, -40.0f, 0.0f);
+    silent.tick(match);
+}
+
+/* You at the centre, the opponent far off on the right, and these items
+ * lying about. */
+A11yMatchState match_with_items(std::vector<A11yMatchItem> items) {
+    A11yMatchState match = match_with(1, 200.0f);
+    match.item_count = static_cast<int>(items.size());
+    match.items_in_match = match.item_count;
+    std::copy(items.begin(), items.end(), match.items);
+    return match;
+}
+
+void a_new_item_plays_where_it_came_in() {
+    Fixture f;
+    f.items_alone();
+    /* GO, with an item already there: taken as seen, nothing played. */
+    f.match_cues.tick(match_with_items({item_at(0, 30.0f, 0.0f)}));
+    assert(count_logged_starting("[a11y] cue item appearance") == 0);
+    assert(f.match_cues.items_appeared().empty());
+    /* One new item on your left: one play, panned left at its place. */
+    f.match_cues.tick(match_with_items({item_at(0, 30.0f, 0.0f), item_at(1, -40.0f, 0.0f)}));
+    assert(
+        f.match_cues.items_appeared().size() == 1 && f.match_cues.items_appeared()[0].serial == 1);
+    assert(count_logged_starting(
+               "[a11y] cue item appearance 1 play pan -0.60 pitch 1.00 gain 1.00") == 1);
+    std::vector<float> out = render(f.engine, 0.3f);
+    double left = 0.0;
+    double right = 0.0;
+    energy(out, 0.0, left, right);
+    assert(left > right * 2.0);
+    /* Played once: the next ticks list it and play nothing. */
+    f.match_cues.tick(match_with_items({item_at(0, 30.0f, 0.0f), item_at(1, -38.0f, 0.0f)}));
+    f.match_cues.tick(match_with_items({item_at(1, -38.0f, 0.0f)}));
+    assert(f.match_cues.items_appeared().empty());
+    assert(count_logged_starting("[a11y] cue item appearance") == 1);
+    /* It sounds once and falls silent by itself. */
+    out = render(f.engine, 0.3f);
+    assert(peak_of(out, 0.0, 0.3) == 0.0);
+    assert(!f.engine.playing(f.match_cues.appearance_voices()[0]));
+}
+
+void a_burst_plays_on_voices_of_its_own() {
+    Fixture f;
+    f.items_alone();
+    f.match_cues.tick(match_with_items({}));
+    /* A Party Ball's three: three plays at once, each on a voice of its
+     * own, each at its place. */
+    f.match_cues.tick(match_with_items(
+        {item_at(3, -40.0f, 0.0f), item_at(4, 40.0f, 0.0f), item_at(5, 0.0f, 60.0f)}));
+    assert(f.match_cues.items_appeared().size() == 3);
+    assert(count_logged_starting("[a11y] cue item appearance 1 play pan -0.60 pitch 1.00") == 1);
+    assert(count_logged_starting("[a11y] cue item appearance 2 play pan 0.60 pitch 1.00") == 1);
+    assert(count_logged_starting("[a11y] cue item appearance 3 play pan 0.00 pitch 2.00") == 1);
+    std::vector<double> at = onsets(render(f.engine, 0.3f));
+    assert(at.size() == 1);
+}
+
+void the_appearance_cue_waits_out_a_pause() {
+    Fixture f;
+    f.items_alone();
+    f.match_cues.tick(match_with_items({}));
+    /* A one-shot sounding as the pause comes: stopped with the match's
+     * other voices. */
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f)}));
+    render(f.engine, 0.05f);
+    A11yMatchState paused = match_with_items({item_at(0, -40.0f, 0.0f), item_at(1, 20.0f, 0.0f)});
+    paused.paused = true;
+    /* Training's item menu makes an item while it holds the match: found
+     * on that tick, unplayed. */
+    f.match_cues.tick(paused);
+    assert(f.match_cues.items_appeared().size() == 1);
+    assert(count_logged_starting("[a11y] cue item appearance") == 1);
+    std::vector<float> out = render(f.engine, 0.2f);
+    assert(peak_of(out, 0.01, 0.2) == 0.0);
+    f.match_cues.tick(paused);
+    /* The menu closes: played where it is then. */
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f), item_at(1, 40.0f, 0.0f)}));
+    assert(count_logged_starting("[a11y] cue item appearance") == 2);
+    assert(count_logged_starting("[a11y] cue item appearance 1 play pan 0.60") == 1);
+}
+
+void the_appearance_cue_is_silent_with_its_switch_off() {
+    Fixture f;
+    f.items_alone();
+    f.model.set(*f.model.find("item_appearance.on"), 0.0f);
+    f.cues.apply(f.engine);
+    f.match_cues.tick(match_with_items({}));
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f)}));
+    /* Played, as every voice plays with its cue turned down, and unheard;
+     * the item is still new, for the announcement. */
+    assert(f.match_cues.items_appeared().size() == 1);
+    assert(peak_of(render(f.engine, 0.3f), 0.0, 0.3) == 0.0);
+    /* Relative to you while you are out: nothing played at all. */
+    A11yMatchState out = match_with_items({item_at(0, -40.0f, 0.0f), item_at(1, 10.0f, 0.0f)});
+    out.you.out = true;
+    s_lines.clear();
+    f.match_cues.tick(out);
+    assert(f.match_cues.items_appeared().size() == 1);
+    assert(count_logged_starting("[a11y] cue item appearance") == 0);
+}
+
+void a_scene_forgets_the_items_seen() {
+    Fixture f;
+    f.items_alone();
+    f.match_cues.tick(match_with_items({}));
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f)}));
+    assert(f.engine.playing(f.match_cues.appearance_voices()[0]));
+    /* The port menu's silence stops the one-shot and forgets nothing. */
+    f.match_cues.silence();
+    render(f.engine, 0.02f);
+    assert(!f.engine.playing(f.match_cues.appearance_voices()[0]));
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f)}));
+    assert(f.match_cues.items_appeared().empty());
+    /* The next match counts its serials from 0 again, from its GO. */
+    f.match_cues.scene_entered();
+    f.match_cues.tick(match_with_items({}));
+    f.match_cues.tick(match_with_items({item_at(0, 40.0f, 0.0f)}));
+    assert(f.match_cues.items_appeared().size() == 1);
+    assert(count_logged_starting("[a11y] cue item appearance") == 2);
+}
+
+void the_appearance_preview_plays_left_right_and_above() {
+    Fixture f;
+    every_switch_off(f);
+    a11y::Clock::time_point now{};
+    assert(f.match_cues.preview("item_appearance", now));
+    std::vector<float> out = preview_frames(f, now, 2.0);
+    /* Three plays 0.6 s apart, each after the lead-in. */
+    constexpr double kLead = 0.012;
+    assert(onsets_near(onsets(out), {kLead, 0.6 + kLead, 1.2 + kLead}));
+    /* Each on the first voice, free again by the next. */
+    assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan -0.80") == 1);
+    assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan 0.80") == 1);
+    assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan 0.00") == 1);
+    const std::vector<float> first(out.begin(), out.begin() + a11y::kCueRate * 2 / 2);
+    double left = 0.0;
+    double right = 0.0;
+    energy(first, 0.0, left, right);
+    assert(left > right * 2.0);
+    /* It ends once the last has sounded, never touching a match voice. */
+    assert(!f.match_cues.previewing());
+    assert(count_logged_starting("[a11y] cue item appearance 1") == 0);
+    /* Relative to you off: the stage's pans, left then right. */
+    f.model.set(*f.model.find("item_cues.relative"), 0.0f);
+    now += std::chrono::seconds(1);
+    s_lines.clear();
+    assert(f.match_cues.preview("item_appearance", now));
+    preview_frames(f, now, 2.0);
+    assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan -0.35") == 1);
+}
+
 }  // namespace
 
 extern "C" void pc_log_line(const char* fmt, ...) {
@@ -758,7 +1002,14 @@ int main() {
     the_menus_rows_are_the_specs_rows();
     the_gap_warning_starts_holds_and_stops();
     the_gap_tone_loops_without_a_seam();
-    the_ledge_warning_registers_last();
+    the_ledge_warning_registers_after_the_gap_warning();
+    the_item_cues_register_in_their_places();
+    a_new_item_plays_where_it_came_in();
+    a_burst_plays_on_voices_of_its_own();
+    the_appearance_cue_waits_out_a_pause();
+    the_appearance_cue_is_silent_with_its_switch_off();
+    a_scene_forgets_the_items_seen();
+    the_appearance_preview_plays_left_right_and_above();
     the_ledge_warning_starts_on_each_side_and_stops();
     the_ledge_pulse_sounds_on_its_side_five_times_a_second();
     a_change_of_opponent_moves_the_voice_without_restarting_it();

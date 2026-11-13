@@ -4,9 +4,11 @@
  * opened together as the game starts and closed together at shutdown. The
  * hooks forward to it. Game thread only. */
 #pragma once
+#include "game_access.h"
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,7 +43,8 @@ public:
 
     /* After the scene's announcement and before the settings file is
      * looked at: the match's cues stop, since they belong to the screen
-     * they play on. A preview plays on. */
+     * they play on, and the items seen are forgotten, since each match is a
+     * scene. A preview plays on. */
     void scene_entered();
     /* Values of the accessibility settings changed: the levels they make up
      * go to the engine. */
@@ -59,6 +62,11 @@ public:
      * the match snapshot (a11y_game_match_state, with what the cues ask of
      * it) and hands it to the cues. */
     void tick(int local_port, bool online, uint64_t held_mask);
+    /* The items new on the last tick, nearest to you first, from GO to
+     * GAME! or TIME! (NewItems, item_appearance.hpp): the appearance cue has
+     * played them, and the appearance announcement says them. Valid until
+     * the next tick. */
+    std::span<const A11yMatchItem> items_appeared() const;
     /* Each frame boundary while the port menu is open: the match's cues
      * stand silent. The game stands still under the menu, so no tick runs to
      * stop them, and the voices would sound on as the last tick left them.

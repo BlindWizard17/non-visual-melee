@@ -1370,6 +1370,7 @@ void a11y_game_match_state(
      * leaves it clear. A Training pause holds no GObj list: the fighters'
      * own update stands still on bit 2. */
     out->paused = gm_801A4624() != 0;
+    out->decided = gmVs_GetSceneState()->unk_0 != 0;
     out->fighters_held = (held_mask & (1ULL << HSD_GOBJ_PLINK_FIGHTER)) != 0;
     match_fighter_state(your_slot, you, &out->you);
 

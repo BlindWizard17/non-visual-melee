@@ -134,5 +134,7 @@ wait '"Teammates, On, Left and right to change\. '
 key Down
 wait '"Time left, On, Left and right to change\. '
 key Down
+wait '"Item appearances, On, Left and right to change\. '
+key Down
 wait '"Voice settings, Enter to open\. '
 quit

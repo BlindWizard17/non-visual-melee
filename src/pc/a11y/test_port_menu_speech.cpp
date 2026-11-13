@@ -795,7 +795,7 @@ constexpr const char* kCueSettingsRow =
     "Cue settings, Enter to open. Cue volume, and each cue's switch, volume and preview.";
 constexpr const char* kAnnouncementSettingsRow =
     "Match announcement settings, Enter to open. The voices, and what is announced: damage, "
-    "stocks, teammates and the time left.";
+    "stocks, teammates, the time left and items.";
 constexpr const char* kVoiceSettingsRow =
     "Voice settings, Enter to open. Your voice and the opponents' voice: each one's voice, rate, "
     "volume and a preview.";
@@ -837,9 +837,9 @@ void accessibility_category_rows(Rml::Context& context) {
         "the cursor on stage select. Off, the D-pad does what the game makes of it, quick chat "
         "included.",
         "Cues, On, Left and right to change. Turns every cue on or off.", kCueSettingsRow,
-        "Match announcements, On, Left and right to change. Says what the HUD shows during a "
-        "match: your damage and stocks in your voice, everyone else's in the opponents' voice, "
-        "and the time left on the screen reader.",
+        "Match announcements, On, Left and right to change. Says what happens in a match: your "
+        "damage and stocks in your voice, everyone else's in the opponents' voice, and the time "
+        "left and the items that appear on the screen reader.",
         kAnnouncementSettingsRow, kResume};
     for (const std::string& text : said) {
         menu.step(1);
@@ -927,7 +927,7 @@ void accessibility_nested_submenu(Rml::Context& context) {
     assert(rmlui_test::level_shown(menu.document(), rmlui_test::kAnnouncementRows));
     assert(rmlui_test::title_line(menu.document()) == "Match announcement settings");
     menu.step(-1);
-    assert(menu.focused() == menu.element("a11y-match_announcements-time_left"));
+    assert(menu.focused() == menu.element("a11y-match_announcements-item_appearances"));
     menu.step(1);
     menu.press();
     assert(menu.focused() == menu.element("a11y-test-voice"));

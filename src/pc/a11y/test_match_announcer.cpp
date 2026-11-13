@@ -953,7 +953,7 @@ void the_rows() {
     assert(interval != nullptr && interval->shown && interval->kind == a11y::ValueKind::number);
     assert(yours->label == "Your damage" && theirs->label == "Opponents' damage");
     assert(interval->label == "Damage interval");
-    assert(model.shown().size() == 10 && model.shown()[3].value == yours &&
+    assert(model.shown().size() == 11 && model.shown()[3].value == yours &&
            model.shown()[4].value == theirs && model.shown()[5].value == interval);
     const a11y::ChoiceOptions modes = a11y::choice_options(*yours);
     assert(modes.size() == 3 && modes[0].shown() == "Off" && modes[1].shown() == "Every change" &&
@@ -1014,7 +1014,7 @@ void the_rows() {
     model.set(*model.find(keys[2]), 0.0f);
     assert(!settings.values().teammates);
 
-    /* Time left last, a switch on by default, read live, before the settle
+    /* Time left, a switch on by default, read live, before the settle
      * time in the file. */
     const a11y::NamedValue* time_left = model.find(a11y::MatchAnnouncementSettings::kTimeLeftKey);
     assert(time_left != nullptr && time_left->shown && time_left->kind == a11y::ValueKind::toggle);
@@ -1026,6 +1026,20 @@ void the_rows() {
     assert(settings.values().time_left);
     model.set(*time_left, 0.0f);
     assert(!settings.values().time_left);
+
+    /* Item appearances last, likewise. */
+    const a11y::NamedValue* appearances =
+        model.find(a11y::MatchAnnouncementSettings::kItemAppearancesKey);
+    assert(appearances != nullptr && appearances->shown &&
+           appearances->kind == a11y::ValueKind::toggle);
+    assert(appearances->label == "Item appearances" && appearances->default_value == 1.0f);
+    assert(model.shown()[10].value == appearances && model.shown().size() == 11);
+    assert(text.find("match_announcements.time_left = ") <
+               text.find("match_announcements.item_appearances = ") &&
+           text.find("match_announcements.item_appearances = ") < text.find("damage_settle = "));
+    assert(settings.values().item_appearances);
+    model.set(*appearances, 0.0f);
+    assert(!settings.values().item_appearances);
 }
 
 }  // namespace
