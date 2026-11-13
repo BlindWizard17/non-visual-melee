@@ -178,9 +178,12 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
          # The key on the visit's first notice only.
          "unlock_notices": [(re.compile(r'\[a11y\] speak .*A for next\."$'), 1)],
          # Two Foods from the Training menu: each said once, and played once,
-         # as the menu closes.
+         # as the menu closes; the item's position cue started for each and
+         # stopped by the pickup and by the menu.
          "match_items": [(re.compile(r"\[a11y\] cue item appearance \d play "), 2),
-                         (re.compile(r'\[a11y\] speak queue[^:]*: "Food"$'), 2)],
+                         (re.compile(r'\[a11y\] speak queue[^:]*: "Food"$'), 2),
+                         (re.compile(r"\[a11y\] cue item position start "), 2),
+                         (re.compile(r"\[a11y\] cue item position stop "), 2)],
          # The save brings Jigglypuff, named once.
          "challenger": [(re.compile(r'\[a11y\] speak .*A new foe has appeared: Jigglypuff\. A to fight\."$'), 1)]}
 

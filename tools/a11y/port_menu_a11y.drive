@@ -5,7 +5,7 @@
 # D-pad, Your position cue off and on again with Left and Right, Preview
 # your position cue played by A and stopped by B, which goes back to the
 # opening row; Cue settings opened again by Right, Up past its first row to
-# Preview appearance cue and on to Ledge warning distance, a step down and
+# Preview item's position cue and on to Ledge warning distance, a step down and
 # back; Match announcement settings opened by Enter, every row read and
 # round, Voice settings inside it opened by A, every row read and round, Up
 # past its first row to its last, Left on that Preview back to Voice
@@ -121,6 +121,12 @@ wait '"Appearance cue volume, slider, 100%\. Left and right to adjust\. The loud
 key Down
 wait '"Preview appearance cue: Play, button\. Plays a short sample of the appearance cue, as it sounds in a match\."$'
 key Down
+wait "\"Item's position cue, On, Left and right to change\. A blip at a steady pace from the nearest item lying loose, from you or, with Items relative to you off, on the stage; it quickens while the item is within reach, where a press would pick it up\.\"$"
+key Down
+wait "\"Item's position cue volume, slider, 100%\. Left and right to adjust\. The loudness of the item's position cue, under the cue volume\.\"$"
+key Down
+wait "\"Preview item's position cue: Play, button\. Plays a short sample of the item's position cue, as it sounds in a match\.\"$"
+key Down
 wait '"Cue volume, slider, 100%\. '
 
 # Cue volume a step down and back up by the D-pad.
@@ -157,13 +163,13 @@ wait '\[a11y\] cue your position preview stop '
 wait "\"Cue settings, Enter to open\. Cue volume, and each cue's switch, volume and preview\.\"$"
 
 # Cue settings again by Right, on its first row; Up past it wraps to the
-# last, Preview appearance cue, and three more Up reach Ledge warning
+# last, Preview item's position cue, and six more Up reach Ledge warning
 # distance, a step down and back up.
 key Right
 wait '"Cue settings\. Cue volume, slider, 100%\. '
 key Up
-wait '"Preview appearance cue: Play, button\. '
-key Up Up Up
+wait '"Preview item.s position cue: Play, button\. '
+key Up Up Up Up Up Up
 wait '"Ledge warning distance, slider, 40 units\. '
 key Left
 wait '\[a11y\] accessibility settings: saved ledge_warning\.distance = 39$'

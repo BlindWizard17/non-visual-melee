@@ -2,9 +2,11 @@
 #include "match_cues.hpp"
 #include "cue_sounds.hpp"
 #include "miniaudio.h"
+#include "pc/pc.h"
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <string>
 #include <utility>
 
 namespace a11y {
@@ -17,6 +19,7 @@ constexpr std::string_view kOpponentId = "opponent_position";
 constexpr std::string_view kGapId = "gap_warning";
 constexpr std::string_view kLedgeId = "ledge_warning";
 constexpr std::string_view kAppearanceId = "item_appearance";
+constexpr std::string_view kItemPositionId = "item_position";
 
 /* A short click lifted under its volume to sit level with held tones. */
 constexpr float kYourBoost = 2.0f;
@@ -29,6 +32,7 @@ constexpr float kLedgeBoost = 1.6f;
 /* A prepared file peaks just under full scale (prepare_sounds.py): no lift
  * until heard beside the others. */
 constexpr float kAppearanceBoost = 1.0f;
+constexpr float kItemPositionBoost = 1.0f;
 
 /* After the last play of the appearance cue's preview has sounded, a
  * little more before it ends, so the end's stop finds nothing playing. */
@@ -222,7 +226,13 @@ ItemMapping MatchCues::ItemValues::mapping(bool pan_to_camera) const {
     mapping.from_you.side_distance = side_distance.value();
     mapping.from_you.pan_floor = pan_floor.value();
     mapping.from_you.height_distance = height_distance.value();
+    mapping.from_you.crossing_margin = crossing_margin.value();
     return mapping;
+}
+
+ItemPositionMapping MatchCues::ItemPositionValues::mapping(ItemMapping frame) const {
+    frame.stage.pitch_range = pitch_range.value();
+    return ItemPositionMapping{frame, steady_interval.value(), reach_interval.value()};
 }
 
 GapMapping MatchCues::GapValues::mapping() const {
@@ -308,9 +318,10 @@ MatchCues::ItemValues MatchCues::add_item_values(ValueGroup group) {
             "below you; off, where it is on the stage.",
             defaults.relative, true}),
         group.add_number(NumberSpec{"pitch_range", "Pitch range",
-            "How many octaves the item cues' pitch spans: relative to you, from the height "
+            "How many octaves the appearance cue's pitch spans: relative to you, from the height "
             "distance below you to as far above; on the stage, from the bottom blast zone to the "
-            "top of the camera's view. Level with you, or midway, it is the cue's own pitch.",
+            "top of the camera's view. Level with you, or midway, it is the cue's own pitch. The "
+            "item's position cue has its own.",
             "", defaults.stage.pitch_range, 0.0f, kWidestPitchRange, 0.1f}),
         group.add_number(NumberSpec{"side_distance", "Side distance",
             "Relative to you: how far to your side an item sounds fully to that side.", "units",
@@ -323,6 +334,29 @@ MatchCues::ItemValues MatchCues::add_item_values(ValueGroup group) {
             "Relative to you: how far above or below you the pitch reaches the top or bottom of "
             "the pitch range; level with you it is the cue's own pitch.",
             "units", from_you.height_distance, 10.0f, 300.0f, 5.0f}),
+        group.add_number(NumberSpec{"crossing_margin", "Crossing margin",
+            "Relative to you: how far past you an item goes before the item's position cue "
+            "changes sides, so it does not flicker as you walk over the item.",
+            "units", from_you.crossing_margin, 0.0f, 30.0f, 0.5f}),
+    };
+}
+
+/* The pitch range starts at the item cues' frame's. */
+MatchCues::ItemPositionValues MatchCues::add_item_position_values(ValueGroup group) {
+    const ItemPositionMapping defaults;
+    return ItemPositionValues{
+        group.add_number(NumberSpec{"pitch_range", "Pitch range",
+            "How many octaves the item's position cue's pitch spans: relative to you, from the "
+            "height distance below you to as far above; on the stage, from the bottom blast zone "
+            "to the top of the camera's view. Level with you, or midway, it is the cue's own "
+            "pitch.",
+            "", defaults.frame.stage.pitch_range, 0.0f, kWidestPitchRange, 0.1f}),
+        group.add_number(NumberSpec{"steady_interval", "Steady interval",
+            "Time between pulses while the item is out of reach.", "s", defaults.steady_interval,
+            0.1f, 3.0f, 0.05f}),
+        group.add_number(NumberSpec{"reach_interval", "Within reach interval",
+            "Time between pulses while the item is within reach, where a press would pick it up.",
+            "s", defaults.reach_interval, kItemFastestInterval, 1.0f, 0.01f}),
     };
 }
 
@@ -389,7 +423,13 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
       m_appearance_cue(settings.add_cue(std::string(kAppearanceId), "Appearance cue",
           "A chime where an item appears in a match: from you or, with Items relative to you "
           "off, on the stage.",
-          kAppearanceBoost)) {
+          kAppearanceBoost)),
+      m_item_position_cue(settings.add_cue(std::string(kItemPositionId), "Item's position cue",
+          "A blip at a steady pace from the nearest item lying loose, from you or, with Items "
+          "relative to you off, on the stage; it quickens while the item is within reach, where "
+          "a press would pick it up.",
+          kItemPositionBoost)),
+      m_item_position_values(add_item_position_values(m_item_position_cue.group)) {
     VoiceSpec your =
         position_voice("your position", m_your_cue.values.cue, tick_sound(), kFastestInterval);
     VoiceSpec opponent = position_voice(
@@ -416,6 +456,17 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
         appearance_voice(m_appearance_cue.values.cue, std::move(sounds.item_appearance));
     m_appearance_pool.add(m_engine, appearance);
     m_appearance_preview_pool.add(m_engine, preview_of(std::move(appearance)));
+    /* One voice per item tracked, the nearest's named plainly. */
+    VoiceSpec item = position_voice("item position", m_item_position_cue.values.cue,
+        std::move(sounds.item_position), kItemFastestInterval);
+    for (std::size_t i = 0; i < m_item_position_voices.size(); i++) {
+        VoiceSpec spec = item;
+        if (i > 0) {
+            spec.name += " " + std::to_string(i + 1);
+        }
+        m_item_position_voices[i] = m_engine.add_voice(std::move(spec));
+    }
+    m_preview_voices.item_position = m_engine.add_voice(preview_of(std::move(item)));
 }
 
 void MatchCues::play(int voice, const std::optional<VoiceTargets>& targets) {
@@ -437,14 +488,39 @@ void MatchCues::silence() {
         play(voice, std::nullopt);
     }
     m_appearance_pool.stop(m_engine);
+    for (int voice : m_item_position_voices) {
+        play(voice, std::nullopt);
+    }
     m_opponent_position.forget();
     m_gap_warning.forget();
+    m_item_position.forget();
 }
 
 void MatchCues::scene_entered() {
     silence();
     m_new_items.forget();
     m_appearance.forget();
+    m_item_position.scene_entered();
+}
+
+void MatchCues::follow_item(std::size_t i, const std::optional<TrackedItem>& item) {
+    const int voice = m_item_position_voices[i];
+    if (voice < 0) {
+        return;
+    }
+    if (!item.has_value()) {
+        play(voice, std::nullopt);
+        return;
+    }
+    /* The start line gives the pace a voice starts at; after it only the
+     * trace shows a pace, so a change of reach gets a line of its own. */
+    const bool moving = m_engine.playing(voice);
+    m_engine.start(voice, item->targets);
+    if (moving && item->within_reach != m_item_within_reach[i] && m_engine.logs()) {
+        pc_log_line(
+            "[a11y] cue item position %s", item->within_reach ? "within reach" : "out of reach");
+    }
+    m_item_within_reach[i] = item->within_reach;
 }
 
 MatchCues::Preview MatchCues::preview_named(std::string_view id) {
@@ -462,6 +538,9 @@ MatchCues::Preview MatchCues::preview_named(std::string_view id) {
     }
     if (id == kAppearanceId) {
         return Preview::appearance;
+    }
+    if (id == kItemPositionId) {
+        return Preview::item_position;
     }
     return Preview::none;
 }
@@ -482,7 +561,7 @@ bool MatchCues::preview(std::string_view id, Clock::time_point now) {
 void MatchCues::stop_preview(Clock::time_point now) {
     const PreviewVoices& v = m_preview_voices;
     bool stopped = false;
-    for (int voice : {v.your, v.opponent, v.gap, v.ledge_left, v.ledge_right}) {
+    for (int voice : {v.your, v.opponent, v.gap, v.ledge_left, v.ledge_right, v.item_position}) {
         if (voice >= 0 && m_engine.playing(voice)) {
             m_engine.stop(voice);
             stopped = true;
@@ -542,6 +621,14 @@ void MatchCues::preview_frame(Clock::time_point now) {
             return;
         }
         break;
+    case Preview::item_position:
+        targets = item_position_preview(
+            seconds, m_item_position_values.mapping(m_items.mapping(pan_to_camera)));
+        if (targets.has_value()) {
+            play(v.item_position, targets);
+            return;
+        }
+        break;
     case Preview::none:
         return;
     }
@@ -575,6 +662,11 @@ void MatchCues::tick(const A11yMatchState& match) {
     }
     if (match.paused && m_appearance_pool.playing(m_engine)) {
         m_appearance_pool.stop(m_engine);
+    }
+    const TrackedItems tracked =
+        m_item_position.tick(match, m_item_position_values.mapping(m_items.mapping(pan_to_camera)));
+    for (std::size_t i = 0; i < tracked.size(); i++) {
+        follow_item(i, tracked[i]);
     }
     play(m_your_voice, your_position(match, m_your.mapping(pan_to_camera)));
     play(m_opponent_voice, m_opponent_position.tick(match, m_opponent.mapping(pan_to_camera)));

@@ -65,6 +65,7 @@ std::unique_ptr<CueSystem> CueSystem::open(
      * value the file lacks is added to it. */
     MatchCueSounds sounds;
     sounds.item_appearance = load_sound(cue_sound_folder() + "item_appearance.wav");
+    sounds.item_position = load_sound(cue_sound_folder() + "item_position.wav");
     system->m_match_cues =
         std::make_unique<MatchCues>(*system->m_cue_settings, *system->m_engine, std::move(sounds));
     system->m_cue_settings->apply(*system->m_engine);

@@ -12,6 +12,9 @@
  * the appearance cue after the ledge warning, which plays a one-shot where
  * each new item comes in, a burst on voices of its own, nothing for an item
  * there at GO, held through a pause, and silent with its switch off;
+ * the item's position cue registers last and follows the nearest loose
+ * item, moving to a nearer one without restarting, quickening within
+ * reach and stopping at a pickup, a pause and the port menu;
  * silenced for the port menu, every voice stops and the next tick starts
  * the cues afresh. Each cue's preview sounds with every switch off and is
  * silent at a volume of 0, pulses as its moment says, restarts, stops with
@@ -70,18 +73,26 @@ A11yMatchState match_with(int slot, float x) {
     return match;
 }
 
-/* A stand-in for a prepared file: 0.1 s of 1 kHz after the engine's
- * lead-in, its end faded. */
+/* A stand-in for a prepared file: a tone after the engine's lead-in, its
+ * end faded. */
+a11y::Sound tone(double hz, float seconds) {
+    a11y::Sound sound;
+    sound.samples.resize(static_cast<std::size_t>(seconds * a11y::kCueRate));
+    for (std::size_t i = 0; i < sound.samples.size(); ++i) {
+        sound.samples[i] =
+            0.9f * static_cast<float>(std::sin(2.0 * std::numbers::pi * hz * i / a11y::kCueRate));
+    }
+    a11y::fade_out(sound, 0.005f);
+    a11y::lead_in(sound, a11y::kLeadInSeconds);
+    return sound;
+}
+
+/* The appearance cue's chime, 0.1 s of 1 kHz, and the item's position
+ * cue's blip, 0.04 s of 800 Hz. */
 a11y::MatchCueSounds test_sounds() {
     a11y::MatchCueSounds sounds;
-    a11y::Sound& chime = sounds.item_appearance;
-    chime.samples.resize(a11y::kCueRate / 10);
-    for (std::size_t i = 0; i < chime.samples.size(); ++i) {
-        chime.samples[i] = 0.9f * static_cast<float>(std::sin(
-                                      2.0 * std::numbers::pi * 1000.0 * i / a11y::kCueRate));
-    }
-    a11y::fade_out(chime, 0.005f);
-    a11y::lead_in(chime, a11y::kLeadInSeconds);
+    sounds.item_appearance = tone(1000.0, 0.1f);
+    sounds.item_position = tone(800.0, 0.04f);
     return sounds;
 }
 
@@ -98,11 +109,20 @@ struct Fixture {
         s_lines.clear();
     }
 
-    /* Only the appearance cue heard, both position cues turned off
-     * underneath. */
+    /* Only the appearance cue heard, both position cues and the item's
+     * turned off underneath. */
     void items_alone() {
         model.set(*model.find("your_position.on"), 0.0f);
         model.set(*model.find("opponent_position.on"), 0.0f);
+        model.set(*model.find("item_position.on"), 0.0f);
+        cues.apply(engine);
+    }
+
+    /* Only the item's position cue heard. */
+    void item_position_alone() {
+        model.set(*model.find("your_position.on"), 0.0f);
+        model.set(*model.find("opponent_position.on"), 0.0f);
+        model.set(*model.find("item_appearance.on"), 0.0f);
         cues.apply(engine);
     }
 
@@ -161,7 +181,7 @@ void both_cues_register_and_fit() {
     Fixture f;
     assert(f.match_cues.your_voice() >= 0 && f.match_cues.opponent_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups.size() == 8);
+    assert(groups.size() == 9);
     assert(groups[1].id == "your_position" && groups[2].id == "opponent_position");
     assert(groups[2].title == "Opponent's position cue");
     /* After both, the item cues' frame, then the value they share, one
@@ -278,6 +298,9 @@ void the_menus_rows_are_the_specs_rows() {
                         "item_appearance.on Appearance cue",
                         "item_appearance.volume Appearance cue volume",
                         "preview item_appearance Preview appearance cue",
+                        "item_position.on Item's position cue",
+                        "item_position.volume Item's position cue volume",
+                        "preview item_position Preview item's position cue",
                     }));
 }
 
@@ -592,7 +615,7 @@ std::vector<float> preview_frames(
  * cue's own. */
 void every_switch_off(Fixture& f) {
     for (const char* key : {"cues.on", "your_position.on", "opponent_position.on", "gap_warning.on",
-             "ledge_warning.on", "item_appearance.on"})
+             "ledge_warning.on", "item_appearance.on", "item_position.on"})
     {
         f.model.set(*f.model.find(key), 0.0f);
     }
@@ -799,11 +822,13 @@ void the_item_cues_register_in_their_places() {
     }
     assert((keys == std::vector<std::string>{"item_cues.relative", "item_cues.pitch_range",
                         "item_cues.side_distance", "item_cues.pan_floor",
-                        "item_cues.height_distance"}));
+                        "item_cues.height_distance", "item_cues.crossing_margin"}));
     const a11y::NamedValue* relative = f.model.find("item_cues.relative");
     assert(relative->kind == a11y::ValueKind::toggle && relative->shown);
     assert(relative->default_value == 1.0f && relative->label == "Items relative to you");
-    for (const char* name : {"pitch_range", "side_distance", "pan_floor", "height_distance"}) {
+    for (const char* name :
+        {"pitch_range", "side_distance", "pan_floor", "height_distance", "crossing_margin"})
+    {
         const a11y::NamedValue* ours = f.model.find(std::string("item_cues.") + name);
         const a11y::NamedValue* theirs = f.model.find(std::string("opponent_position.") + name);
         assert(ours != nullptr && !ours->shown && ours != theirs);
@@ -828,6 +853,9 @@ void the_item_cues_register_in_their_places() {
     a11y::MatchCues silent{cues, engine};
     assert(silent.appearance_voices().empty() && silent.appearance_preview_voices().empty());
     assert(count_logged_starting("[a11y] cue item appearance 1 refused: no sound") == 1);
+    assert(silent.item_position_voices()[0] == -1 && silent.preview_voices().item_position == -1);
+    assert(count_logged_starting("[a11y] cue item position refused: no sound") == 1);
+    assert(count_logged_starting("[a11y] cue item position preview refused: no sound") == 1);
     assert(silent.gap_voice() >= 0);
     A11yMatchState match = match_with(1, 60.0f);
     silent.tick(match);
@@ -985,6 +1013,147 @@ void the_appearance_preview_plays_left_right_and_above() {
     assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan -0.35") == 1);
 }
 
+void the_item_position_cue_registers_last() {
+    Fixture f;
+    const auto& groups = f.model.groups();
+    assert(groups[8].id == "item_position" && groups[8].title == "Item's position cue");
+    std::vector<std::string> keys;
+    for (const a11y::NamedValue* named : groups[8].values) {
+        keys.push_back(named->key);
+    }
+    assert((keys == std::vector<std::string>{"item_position.on", "item_position.volume",
+                        "item_position.boost", "item_position.pitch_range",
+                        "item_position.steady_interval", "item_position.reach_interval"}));
+    /* Its pace and pitch range are tuning values. */
+    for (const char* name : {"boost", "pitch_range", "steady_interval", "reach_interval"}) {
+        assert(!f.model.find(std::string("item_position.") + name)->shown);
+    }
+    const a11y::ItemPositionMapping defaults;
+    assert(f.model.find("item_position.pitch_range")->default_value ==
+           f.model.find("item_cues.pitch_range")->default_value);
+    const a11y::NamedValue* steady = f.model.find("item_position.steady_interval");
+    const a11y::NamedValue* reach = f.model.find("item_position.reach_interval");
+    assert(steady->default_value == defaults.steady_interval && steady->unit == "s");
+    assert(reach->default_value == defaults.reach_interval && reach->unit == "s");
+    assert(reach->min == a11y::MatchCues::kItemFastestInterval);
+    assert(f.model.find("item_position.boost")->default_value == 1.0f);
+    assert(f.match_cues.item_position_voices().size() == a11y::kTrackedItems);
+    assert(f.match_cues.item_position_voices()[0] >= 0);
+    assert(f.match_cues.preview_voices().item_position >= 0);
+}
+
+void the_item_position_cue_follows_the_nearest_loose_item() {
+    Fixture f;
+    f.item_position_alone();
+    /* GO with a Food on your left: it starts at once, at the steady
+     * pace. */
+    f.match_cues.tick(match_with_items({item_at(0, -40.0f, 0.0f)}));
+    const int voice = f.match_cues.item_position_voices()[0];
+    assert(f.engine.playing(voice));
+    assert(count_logged_starting("[a11y] cue item position start pan -0.60 pitch 1.00 gain 1.00 "
+                                 "interval 0.500") == 1);
+    std::vector<float> first = render(f.engine, 0.15f);
+    /* Another comes in nearer, on your right: the voice moves there. */
+    f.match_cues.tick(match_with_items({item_at(1, 20.0f, 0.0f), item_at(0, -40.0f, 0.0f)}));
+    std::vector<float> second = render(f.engine, 0.7f);
+    assert(count_logged_starting("[a11y] cue item position start") == 1);
+    assert(count_logged_starting("[a11y] cue item position stop") == 0);
+    std::vector<float> all = first;
+    all.insert(all.end(), second.begin(), second.end());
+    /* One pulse at the start and the next a steady interval later, none at
+     * the change. */
+    constexpr double kLead = 0.012;
+    assert(onsets_near(onsets(all), {kLead, 0.5 + kLead}));
+    double left = 0.0;
+    double right = 0.0;
+    energy(first, 0.0, left, right);
+    assert(left > right * 2.0);
+    energy(all, 0.4, left, right);
+    assert(right > left * 2.0);
+}
+
+void within_reach_the_pulse_quickens() {
+    Fixture f;
+    f.item_position_alone();
+    A11yMatchItem food = item_at(0, 10.0f, 0.0f);
+    f.match_cues.tick(match_with_items({food}));
+    render(f.engine, 0.35f);
+    /* You turn to face it: within reach, logged, and pulsing at once and
+     * then at the fast pace. */
+    food.within_reach = true;
+    f.match_cues.tick(match_with_items({food}));
+    f.match_cues.tick(match_with_items({food}));
+    assert(count_logged_starting("[a11y] cue item position within reach") == 1);
+    std::vector<double> at = onsets(render(f.engine, 0.5f));
+    assert(at.size() >= 3);
+    assert(at[0] < 0.03);
+    assert(std::fabs(at[1] - at[0] - 0.15) < 0.002 && std::fabs(at[2] - at[1] - 0.15) < 0.002);
+    /* Turned away again. */
+    food.within_reach = false;
+    f.match_cues.tick(match_with_items({food}));
+    assert(count_logged_starting("[a11y] cue item position out of reach") == 1);
+    /* Picked up: no loose item left, the cue stops. */
+    A11yMatchItem taken = food;
+    taken.loose = false;
+    taken.holder = 0;
+    f.match_cues.tick(match_with_items({taken}));
+    assert(!f.engine.playing(f.match_cues.item_position_voices()[0]));
+    assert(count_logged_starting("[a11y] cue item position stop") == 1);
+    /* The stop is no change of reach. */
+    assert(count_logged_starting("[a11y] cue item position out of reach") == 1);
+}
+
+void the_item_position_cue_stops_for_a_pause_and_the_port_menu() {
+    Fixture f;
+    f.item_position_alone();
+    const int voice = f.match_cues.item_position_voices()[0];
+    f.match_cues.tick(match_with_items({item_at(0, 10.0f, 0.0f)}));
+    assert(f.engine.playing(voice));
+    A11yMatchState paused = match_with_items({item_at(0, 10.0f, 0.0f)});
+    paused.paused = true;
+    f.match_cues.tick(paused);
+    assert(!f.engine.playing(voice));
+    f.match_cues.tick(match_with_items({item_at(0, 10.0f, 0.0f)}));
+    assert(f.engine.playing(voice));
+    f.match_cues.silence();
+    assert(!f.engine.playing(voice));
+    assert(count_logged_starting("[a11y] cue item position stop") == 2);
+    /* The scene's entry: the next match before its GO. */
+    f.match_cues.scene_entered();
+    A11yMatchState before = match_with_items({item_at(0, 10.0f, 0.0f)});
+    before.you.can_move = false;
+    f.match_cues.tick(before);
+    assert(!f.engine.playing(voice));
+}
+
+void the_item_position_preview_quickens() {
+    Fixture f;
+    every_switch_off(f);
+    a11y::Clock::time_point now{};
+    assert(f.match_cues.preview("item_position", now));
+    assert(count_logged_starting("[a11y] cue item position preview start pan 0.40 pitch 1.00 "
+                                 "gain 1.00 interval 0.500") == 1);
+    std::vector<float> out = preview_frames(f, now, 2.5);
+    /* Three at the steady pace, then four within reach, a little to your
+     * right. */
+    constexpr double kLead = 0.012;
+    assert(onsets_near(onsets(out),
+        {kLead, 0.5 + kLead, 1.0 + kLead, 1.4 + kLead, 1.55 + kLead, 1.7 + kLead, 1.85 + kLead}));
+    double left = 0.0;
+    double right = 0.0;
+    energy(out, 0.0, left, right);
+    assert(right > left * 1.5);
+    assert(!f.match_cues.previewing());
+    assert(count_logged_starting("[a11y] cue item position preview stop") == 1);
+    assert(count_logged_starting("[a11y] cue item position start") == 0);
+    /* Relative to you off: where it is on the stage, right of centre. */
+    f.model.set(*f.model.find("item_cues.relative"), 0.0f);
+    now += std::chrono::seconds(1);
+    s_lines.clear();
+    assert(f.match_cues.preview("item_position", now));
+    assert(count_logged_starting("[a11y] cue item position preview start pan 0.12 ") == 1);
+}
+
 }  // namespace
 
 extern "C" void pc_log_line(const char* fmt, ...) {
@@ -1010,6 +1179,11 @@ int main() {
     the_appearance_cue_is_silent_with_its_switch_off();
     a_scene_forgets_the_items_seen();
     the_appearance_preview_plays_left_right_and_above();
+    the_item_position_cue_registers_last();
+    the_item_position_cue_follows_the_nearest_loose_item();
+    within_reach_the_pulse_quickens();
+    the_item_position_cue_stops_for_a_pause_and_the_port_menu();
+    the_item_position_preview_quickens();
     the_ledge_warning_starts_on_each_side_and_stops();
     the_ledge_pulse_sounds_on_its_side_five_times_a_second();
     a_change_of_opponent_moves_the_voice_without_restarting_it();

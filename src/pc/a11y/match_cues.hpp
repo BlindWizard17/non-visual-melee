@@ -13,8 +13,10 @@
 #include "game_access.h"
 #include "item_appearance.hpp"
 #include "item_frame.hpp"
+#include "item_position.hpp"
 #include "ledge_warning.hpp"
 #include "position_cue.hpp"
+#include <array>
 #include <chrono>
 #include <optional>
 #include <span>
@@ -28,6 +30,7 @@ using Clock = std::chrono::steady_clock;
  * empty when its file is missing, which leaves that cue silent. */
 struct MatchCueSounds {
     Sound item_appearance;
+    Sound item_position;
 };
 
 class MatchCues {
@@ -40,6 +43,9 @@ public:
     /* The shortest interval the opponent's cue allows, which its longer
      * pulse fits the same way. */
     static constexpr float kOpponentFastestInterval = 0.2f;
+    /* The shortest within-reach interval the item's position cue allows. A
+     * longer pulse is cut there with a fade (cue_engine.hpp). */
+    static constexpr float kItemFastestInterval = 0.05f;
     /* How long a preview's voices, once stopped, wait before they start
      * again: past the stop ramp and an audio block, so a restarted preview
      * starts from silence, its first pulse at once, rather than carrying on
@@ -54,6 +60,7 @@ public:
         int gap = -1;
         int ledge_left = -1;
         int ledge_right = -1;
+        int item_position = -1;
     };
 
     /* Before the accessibility settings file is read, so the file gains
@@ -64,10 +71,10 @@ public:
      * updates or stops each voice. */
     void tick(const A11yMatchState& match);
     /* Every voice stops with its ramp, and what the drivers keep between
-     * ticks (the opponent's side, the gap warning's hold) is forgotten, so
-     * the next tick starts the cues afresh from its snapshot, as after any
-     * silence. Called each frame the port menu is open, while no tick
-     * runs. */
+     * ticks (the opponent's side, the items' sides, the gap warning's hold)
+     * is forgotten, so the next tick starts the cues afresh from its
+     * snapshot, as after any silence. Called each frame the port menu is
+     * open, while no tick runs. */
     void silence();
     /* A scene was entered: silence, and the items seen and held are
      * forgotten, since each match is a scene and counts its items' serials
@@ -106,13 +113,16 @@ public:
     std::span<const int> appearance_preview_voices() const {
         return m_appearance_preview_pool.voices();
     }
+    /* The item's position cue's voices, the nearest item's first, each -1
+     * when refused (its sound missing). */
+    std::span<const int> item_position_voices() const { return m_item_position_voices; }
 
     /* How far past each end of the floor below you the snapshot's deadly
      * test casts (A11yFloorEnd), as the ledge warning's settings hold it. */
     float edge_offset() const { return m_ledge.edge_offset.value(); }
 
 private:
-    enum class Preview { none, your, opponent, gap, ledge, appearance };
+    enum class Preview { none, your, opponent, gap, ledge, appearance, item_position };
 
     struct StageValues {
         Number pitch_range;
@@ -151,8 +161,19 @@ private:
         Number side_distance;
         Number pan_floor;
         Number height_distance;
+        /* The item's position cue's alone: a one-shot has no side to
+         * keep. */
+        Number crossing_margin;
 
         ItemMapping mapping(bool pan_to_camera) const;
+    };
+    struct ItemPositionValues {
+        Number pitch_range;
+        Number steady_interval;
+        Number reach_interval;
+
+        /* The item cues' frame with the cue's own pitch range. */
+        ItemPositionMapping mapping(ItemMapping frame) const;
     };
     struct LedgeValues {
         Number distance;
@@ -167,6 +188,7 @@ private:
     static YourValues add_your_values(ValueGroup group);
     static OpponentValues add_opponent_values(ValueGroup group);
     static ItemValues add_item_values(ValueGroup group);
+    static ItemPositionValues add_item_position_values(ValueGroup group);
     static GapValues add_gap_values(ValueGroup group);
     static LedgeValues add_ledge_values(ValueGroup group);
     /* The preview of the cue with this id, none for an unknown one. */
@@ -174,6 +196,9 @@ private:
     /* A voice with targets starts, or only moves when it plays; one without
      * stops. */
     void play(int voice, const std::optional<VoiceTargets>& targets);
+    /* The item's position cue's voice `i` follows its item, or stops with
+     * none; a change of reach while it plays is logged. */
+    void follow_item(std::size_t i, const std::optional<TrackedItem>& item);
     /* The appearance cue's preview at its moment: false once it has
      * ended. */
     bool appearance_preview_frame(double seconds, bool pan_to_camera);
@@ -183,7 +208,8 @@ private:
      * in the menus: each cue registers its group and its values; the item
      * cues' frame after the opponent's position cue, so Items relative to
      * you sits beside the opponent's relative switch, then the value both
-     * position cues share, so its row sits beside theirs. */
+     * position cues share, so its row sits beside theirs; the item's
+     * position cue last, after the appearance cue. */
     CueGroup m_your_cue;
     YourValues m_your;
     CueGroup m_opponent_cue;
@@ -203,6 +229,12 @@ private:
     OneShotPool m_appearance_preview_pool;
     /* The appearance cue's sound's length, for its preview's end. */
     double m_appearance_seconds = 0.0;
+    CueGroup m_item_position_cue;
+    ItemPositionValues m_item_position_values;
+    ItemPosition m_item_position;
+    std::array<int, kTrackedItems> m_item_position_voices{};
+    /* Each voice's item within reach, as last started or moved. */
+    std::array<bool, kTrackedItems> m_item_within_reach{};
     int m_your_voice;
     int m_opponent_voice;
     int m_gap_voice;

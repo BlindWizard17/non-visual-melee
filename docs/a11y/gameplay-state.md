@@ -424,7 +424,7 @@ The item's flag word `xDC8_word.flags` holds its part in a pickup:
 - **`x15`, grabbable**, with a pickup callback (`Item_IsGrabbable`): set while the item lies loose and again after a throw, so a flying thrown item can be caught, and is in reach of the test below.
 - **`xF`, who has held it**, one bit per slot in a four-bit field, so slots 4 and 5 never mark it. Never cleared while the item lives.
 
-So the fork's **loose** is grabbable, or a touch item, and neither held nor thrown. A new item falling in is loose and can be in reach.
+So the fork's **loose** is grabbable, or a touch item, and neither held nor thrown. A new item falling in is loose and can be in reach, though not always from its first tick: in a VS run the item's position cue started on a Lip's Stick's first tick, but on a Barrel's about ten ticks after it appeared (seen in the log, not probed).
 
 ### Taking an item
 

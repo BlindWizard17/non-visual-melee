@@ -155,6 +155,10 @@ public:
     /* Once a tick, after the targets are set: one trace line per voice.
      * Nothing without a trace file. */
     void trace_tick(int tick);
+    /* The speech log switch the engine was made with: a driver logging a
+     * cue's own events (MatchCues, the item's position cue's reach) follows
+     * it too. */
+    bool logs() const { return m_options.log; }
 
     /* Audio thread: the next frames of the mix, interleaved stereo, also
      * written to the dump. */

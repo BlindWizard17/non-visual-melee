@@ -43,4 +43,9 @@ int item_side(float dx);
 std::optional<VoiceTargets> item_targets(
     const A11yMatchState& match, float x, float y, int side, const ItemMapping& mapping);
 
+/* The item cues' previews' match: Final Destination's frame as measured
+ * (docs/a11y/gameplay-state.md, "Sizes measured"), with you at its centre,
+ * past GO. */
+A11yMatchState item_preview_match();
+
 }  // namespace a11y

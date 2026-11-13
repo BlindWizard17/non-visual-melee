@@ -27,4 +27,20 @@ std::optional<VoiceTargets> item_targets(
     return targets;
 }
 
+A11yMatchState item_preview_match() {
+    A11yMatchState match{};
+    match.running = true;
+    match.you.can_move = true;
+    A11yStageFrame& stage = match.stage;
+    stage.blast_left = -246.0f;
+    stage.blast_right = 246.0f;
+    stage.blast_top = 188.0f;
+    stage.blast_bottom = -140.0f;
+    stage.camera_left = -170.0f;
+    stage.camera_right = 170.0f;
+    stage.camera_top = 114.0f;
+    stage.camera_bottom = -80.0f;
+    return match;
+}
+
 }  // namespace a11y

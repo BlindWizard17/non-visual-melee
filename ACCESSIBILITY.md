@@ -87,6 +87,13 @@ included.
     With Items relative to you off, it pans and pitches with where the item
     is on the stage instead. An item made from the Training menu chimes as the
     menu closes.
+  - **Item's position cue.** A blip at a steady pace from the nearest item
+    lying loose, placed as the appearance cue is, from you or on the stage.
+    It quickens while the item is within reach, where pressing A would pick
+    it up: face the item and get close. It stops when no item is left lying
+    about, and keeps going while you hold one, following the others. A
+    Starman or a Mushroom never quickens it, since you take one by walking
+    into it.
 
 ### What is not included
 

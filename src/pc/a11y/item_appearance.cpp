@@ -7,24 +7,6 @@
 namespace a11y {
 namespace {
 
-/* Final Destination's frame as measured (docs/a11y/gameplay-state.md,
- * "Sizes measured"), the preview's stage, with you at its centre. */
-A11yMatchState preview_match() {
-    A11yMatchState match{};
-    match.running = true;
-    match.you.can_move = true;
-    A11yStageFrame& stage = match.stage;
-    stage.blast_left = -246.0f;
-    stage.blast_right = 246.0f;
-    stage.blast_top = 188.0f;
-    stage.blast_bottom = -140.0f;
-    stage.camera_left = -170.0f;
-    stage.camera_right = 170.0f;
-    stage.camera_top = 114.0f;
-    stage.camera_bottom = -80.0f;
-    return match;
-}
-
 /* Where the preview's items appear from you: to the side, about where a
  * Capsule lands a few steps away, and above, about a jump's height. */
 constexpr float kPreviewSide = 60.0f;
@@ -95,7 +77,7 @@ std::vector<VoiceTargets> AppearanceCue::tick(const A11yMatchState& match,
 }
 
 std::array<OneShotPlay, 3> appearance_preview(const ItemMapping& mapping) {
-    const A11yMatchState match = preview_match();
+    const A11yMatchState match = item_preview_match();
     const float places[3][2] = {{-kPreviewSide, 0.0f}, {kPreviewSide, 0.0f}, {0.0f, kPreviewAbove}};
     std::array<OneShotPlay, 3> plays{};
     for (std::size_t i = 0; i < plays.size(); i++) {
