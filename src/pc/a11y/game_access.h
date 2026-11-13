@@ -877,7 +877,10 @@ typedef struct A11yMatchItem {
     /* The game's serial (Item.x1C), counted up from 0 each match for every
      * item made, projectiles included: it names one item as long as it
      * lives and is never given again within a match. Container contents are
-     * new items with new serials. */
+     * new items with new serials. Online a rollback re-runs the counter
+     * (it_804D6D10) from where the window began, so an item made inside it
+     * can take another serial on the corrected timeline, and a serial seen
+     * can name another item. */
     int serial;
     A11yItem kind;
     /* Item.pos, which is not the item's bottom: an item resting on a floor

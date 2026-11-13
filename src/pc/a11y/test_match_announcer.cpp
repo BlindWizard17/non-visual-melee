@@ -1096,6 +1096,23 @@ void pickups_a_rollback() {
     assert((f.ticks() == Lines{pickup("opponents", 1, "Starman")}));
 }
 
+/* An online rollback can shift serials: a hand's serial naming an item of
+ * another kind after it is a take, even where the tally does not rise (a
+ * re-pickup); the same item on the same serial is none. */
+void pickups_a_serial_shifted_by_a_rollback() {
+    Fixture f;
+    f.go();
+    take(f.hud, 0, 0, 7, A11Y_It_Kind_L_Gun);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Ray Gun")}));
+    /* The corrected timeline: serial 7 is a Home-Run Bat you held before,
+     * picked up again, and the Ray Gun never yours. */
+    f.hud.players[0].taken[A11Y_It_Kind_L_Gun]--;
+    take(f.hud, 0, 0, 7, A11Y_It_Kind_Bat, false);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Home-Run Bat")}));
+    /* Held on: nothing more. */
+    assert(f.ticks(30).empty());
+}
+
 /* From GO to GAME! or TIME! only: nothing before GO, on GAME!'s tick or
  * after. */
 void pickups_from_go_to_game() {
@@ -1353,6 +1370,7 @@ int main() {
     pickups_a_healing_item_used_up_at_once();
     pickups_moves_are_no_takes();
     pickups_a_rollback();
+    pickups_a_serial_shifted_by_a_rollback();
     pickups_from_go_to_game();
     pickups_have_their_own_subject();
     pickups_the_switches();

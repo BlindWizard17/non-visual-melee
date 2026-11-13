@@ -12,6 +12,7 @@
 #include "match_announcer.hpp"
 #include "speech.hpp"
 #include <array>
+#include <cstdint>
 #include <span>
 #include <string>
 #include <unordered_set>
@@ -19,13 +20,16 @@
 
 namespace a11y {
 
-/* The items that appear in a match, by serial, from GO to GAME! or TIME!.
- * Items already there at GO are taken as seen, unsaid, and so is anything
- * listed before GO; from GAME! on none is new or marked seen, so a GAME!
- * a rollback takes back loses no item. A serial names one item for the whole
- * match and is never given again in it, so an item is new once: a rollback
- * that makes it again, or a list that drops it and lists it again, says
- * nothing more. */
+/* The items that appear in a match, by serial and kind, from GO to GAME! or
+ * TIME!. Items already there at GO are taken as seen, unsaid, and so is
+ * anything listed before GO; from GAME! on none is new or marked seen, so a
+ * GAME! a rollback takes back loses no item. A serial names one item for
+ * the whole match on one timeline, so an item is new once: a list that drops
+ * it and lists it again, or a rollback that makes it again on its serial,
+ * says nothing more. Online a rollback can shift the serials of the items
+ * made inside its window (every item made, projectiles included, takes the
+ * next from one counter), so a serial seen may come back as another item:
+ * one of another kind is new, one of the same kind is taken as seen. */
 class NewItems {
 public:
     /* Once a tick, paused ticks included (Training's item menu makes an
@@ -39,8 +43,8 @@ public:
     void forget();
 
 private:
-    bool m_started = false; /* GO has come */
-    std::unordered_set<int> m_seen;
+    bool m_started = false;                   /* GO has come */
+    std::unordered_set<std::uint64_t> m_seen; /* serial and kind */
     std::vector<A11yMatchItem> m_new;
 };
 

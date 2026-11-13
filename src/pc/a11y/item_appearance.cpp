@@ -3,6 +3,7 @@
 #include "item_names.hpp"
 #include "sentences.hpp"
 #include <algorithm>
+#include <cstdint>
 
 namespace a11y {
 namespace {
@@ -11,6 +12,12 @@ namespace {
  * Capsule lands a few steps away, and above, about a jump's height. */
 constexpr float kPreviewSide = 60.0f;
 constexpr float kPreviewAbove = 40.0f;
+
+/* An item's key in the seen set: its serial and its kind. */
+std::uint64_t seen_key(const A11yMatchItem& item) {
+    return static_cast<std::uint64_t>(static_cast<std::uint32_t>(item.serial)) << 32 |
+           static_cast<std::uint32_t>(item.kind);
+}
 
 /* An item's one-shot, or none while it has no place. */
 std::optional<VoiceTargets> placed(
@@ -36,7 +43,7 @@ std::span<const A11yMatchItem> NewItems::tick(const A11yMatchState& match) {
     m_started = m_started || match.you.can_move;
     for (int i = 0; i < match.item_count; i++) {
         const A11yMatchItem& item = match.items[i];
-        if (m_seen.insert(item.serial).second && !quiet) {
+        if (m_seen.insert(seen_key(item)).second && !quiet) {
             m_new.push_back(item);
         }
     }

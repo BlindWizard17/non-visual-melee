@@ -80,6 +80,31 @@ void a_new_item_is_found_once() {
     assert(items.tick(match_with({item(0, A11Y_It_Kind_BombHei)})).empty());
 }
 
+/* Online a rollback can shift serials: a serial seen that comes back as an
+ * item of another kind is new; one of the same kind is taken as seen. */
+void a_serial_reused_by_another_kind_is_new() {
+    a11y::NewItems items;
+    items.tick(match_with({}));
+    assert((serials(items.tick(match_with({item(3, A11Y_It_Kind_L_Gun)}))) == std::vector<int>{3}));
+    /* The corrected timeline: serial 3 a Home-Run Bat, said; serial 4 the
+     * Ray Gun, as it is a serial not seen. */
+    std::span<const A11yMatchItem> fresh =
+        items.tick(match_with({item(3, A11Y_It_Kind_Bat), item(4, A11Y_It_Kind_L_Gun)}));
+    assert(fresh.size() == 2 && fresh[0].kind == A11Y_It_Kind_Bat && fresh[1].serial == 4);
+    /* Each seen on its own key: neither again. */
+    assert(items.tick(match_with({item(3, A11Y_It_Kind_L_Gun)})).empty());
+    assert(items.tick(match_with({item(3, A11Y_It_Kind_Bat)})).empty());
+    /* The same kind on a serial seen, a true re-creation or another of its
+     * kind: taken as seen. */
+    assert(items.tick(match_with({item(4, A11Y_It_Kind_L_Gun)})).empty());
+    /* From GAME! on, a reused serial marks nothing seen either. */
+    A11yMatchState over = match_with({item(3, A11Y_It_Kind_Heart)});
+    over.decided = true;
+    assert(items.tick(over).empty());
+    over.decided = false;
+    assert((serials(items.tick(over)) == std::vector<int>{3}));
+}
+
 void a_burst_comes_in_the_lists_order() {
     a11y::NewItems items;
     items.tick(match_with({item(4, A11Y_It_Kind_Heart)}));
@@ -358,6 +383,7 @@ extern "C" void pc_log_line(const char* fmt, ...) {
 
 int main() {
     a_new_item_is_found_once();
+    a_serial_reused_by_another_kind_is_new();
     a_burst_comes_in_the_lists_order();
     items_there_at_go_are_taken_as_seen();
     nothing_from_game_and_after_a_scene();
