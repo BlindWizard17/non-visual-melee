@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* The item's position cue's driver against hand-written match snapshots:
  * the nearest loose item tracked, a held or thrown one skipped; a change of
- * nearest item; the two paces; both frames, the crossing margin held and
- * flipped; silence while paused, before GO, with none loose and while you
- * are out relative to you; tracking on while you hold an item; and the
- * preview's moments. Links item_position.cpp, item_frame.cpp and
- * position_cue.cpp only. */
+ * nearest item; the two paces; the item within reach followed ahead of a
+ * nearer one, but not one that is not loose; both frames, the crossing
+ * margin held and flipped; silence while paused, before GO, with none loose
+ * and while you are out relative to you; tracking on while you hold an
+ * item; and the preview's moments. Links item_position.cpp, item_frame.cpp
+ * and position_cue.cpp only. */
 #include "item_position.hpp"
 #include "test_match_snapshot.hpp"
 #include <algorithm>
@@ -113,14 +114,34 @@ void within_reach_quickens_the_pace() {
     /* Turned away, out of reach again: the steady pace. */
     close.within_reach = false;
     assert(near(first(cue.tick(match_with({close}), mapping)).targets.interval, 0.6f));
-    /* Reach is the nearest loose item's own: another in reach further off
-     * (as the game's test may find with the nearest behind you) leaves the
-     * tracked one steady. */
+}
+
+void the_item_within_reach_is_followed_first() {
+    ItemPosition cue;
+    ItemPositionMapping mapping;
+    mapping.steady_interval = 0.6f;
+    mapping.reach_interval = 0.1f;
+    /* One just behind you, nearest, and one in front within reach, as the
+     * game's test finds it: the voice follows the one in front, quick. */
+    assert(first(cue.tick(match_with({item(2, -10.0f), item(1, 30.0f)}), mapping)).serial == 2);
     A11yMatchItem ahead = item(1, 30.0f);
     ahead.within_reach = true;
-    const a11y::TrackedItem& behind =
-        first(cue.tick(match_with({item(2, -10.0f), ahead}), mapping));
-    assert(behind.serial == 2 && near(behind.targets.interval, 0.6f));
+    const a11y::TrackedItem& it = first(cue.tick(match_with({item(2, -10.0f), ahead}), mapping));
+    assert(it.serial == 1 && it.within_reach);
+    assert(near(it.targets.interval, 0.1f) && near(it.targets.pan, 0.5f));
+    /* Turned away from it: back to the nearest, steady, its side afresh. */
+    const a11y::TrackedItem& back =
+        first(cue.tick(match_with({item(2, -10.0f), item(1, 30.0f)}), mapping));
+    assert(back.serial == 2 && !back.within_reach);
+    assert(near(back.targets.interval, 0.6f) && back.targets.pan < 0.0f);
+    /* In reach but not loose, a thrown item flying in front of you: the
+     * nearest loose one is followed, steady. */
+    A11yMatchItem thrown = item(3, 15.0f);
+    thrown.loose = false;
+    thrown.within_reach = true;
+    const a11y::TrackedItem& loose =
+        first(cue.tick(match_with({item(2, -10.0f), thrown}), mapping));
+    assert(loose.serial == 2 && near(loose.targets.interval, 0.6f));
 }
 
 void the_side_is_kept_until_past_the_crossing_margin() {
@@ -291,6 +312,7 @@ int main() {
     the_nearest_loose_item_is_tracked();
     a_new_nearest_item_takes_the_voice();
     within_reach_quickens_the_pace();
+    the_item_within_reach_is_followed_first();
     the_side_is_kept_until_past_the_crossing_margin();
     each_item_keeps_its_own_side();
     the_pitch_follows_the_height_and_the_cues_range();

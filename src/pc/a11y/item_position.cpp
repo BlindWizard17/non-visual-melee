@@ -36,12 +36,22 @@ TrackedItems ItemPosition::tick(const A11yMatchState& match, const ItemPositionM
     /* The sides of the items tracked this tick alone: one no longer
      * tracked takes its side afresh when it is again. */
     std::unordered_map<int, int> sides;
-    std::size_t voice = 0;
-    for (int i = 0; i < match.item_count && voice < tracked.size(); i++) {
-        const A11yMatchItem& item = match.items[i];
-        if (!item.loose) {
-            continue;
+    /* The loose items in the voices' order: the one within reach (the
+     * game's single answer, so at most one) ahead of the nearest; the list
+     * itself stays nearest first, as the appearances read it. */
+    std::array<int, A11Y_MATCH_ITEMS> order{};
+    int count = 0;
+    for (const bool reach : {true, false}) {
+        for (int i = 0; i < match.item_count; i++) {
+            const A11yMatchItem& item = match.items[i];
+            if (item.loose && item.within_reach == reach) {
+                order[count++] = i;
+            }
         }
+    }
+    std::size_t voice = 0;
+    for (int at = 0; at < count && voice < tracked.size(); at++) {
+        const A11yMatchItem& item = match.items[order[at]];
         const auto kept = m_sides.find(item.serial);
         const int side = side_of(item.x - match.you.x, kept == m_sides.end() ? 0 : kept->second,
             mapping.frame.from_you.crossing_margin);

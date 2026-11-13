@@ -92,6 +92,9 @@ included.
   - **Item's position cue.** A blip at a steady pace from the nearest item
     lying loose, placed as the appearance cue is, from you or on the stage.
     It quickens while the item is within reach: face the item and get close.
+    An item within reach is followed even when another lies nearer, such as
+    one just behind you, so the quick blip is always the item you would
+    take.
     On the ground pressing A then picks it up. In the air only a light item
     is within reach, and only while your hands are empty: Z catches it there,
     since A is an aerial attack. It stops when no item is left lying

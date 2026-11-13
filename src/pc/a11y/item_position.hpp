@@ -2,12 +2,12 @@
 /* The item's position cue's driver (.scratch/items/spec.md, "The item's
  * position cue", "Ready for several items"; primer docs/a11y/cues.md, "The
  * item's position cue"): from the match snapshot's items, nearest to you
- * first, to a pulsed voice's targets for the nearest loose item, chosen
- * afresh each tick, in the item cues' frame (item_frame.hpp). A steady pace,
- * and a faster one while the item is within reach. Its only state is each
- * tracked item's side of you, kept by serial, so following the nearest N
- * items is N voices and kTrackedItems. Touches no game state. Game thread
- * only. */
+ * first, to a pulsed voice's targets for the loose item within reach, or
+ * with none the nearest loose item, chosen afresh each tick, in the item
+ * cues' frame (item_frame.hpp). A steady pace, and a faster one while the
+ * item is within reach. Its only state is each tracked item's side of you,
+ * kept by serial, so following N items is N voices and kTrackedItems. Touches
+ * no game state. Game thread only. */
 #pragma once
 #include "cue_engine.hpp"
 #include "game_access.h"
@@ -18,9 +18,9 @@
 
 namespace a11y {
 
-/* How many of the nearest loose items the cue follows, each on a voice of
- * its own, the nearest on the first. One, with no row: how several sound
- * together is a later feature's question. */
+/* How many loose items the cue follows, each on a voice of its own: the one
+ * within reach on the first, then the nearest. One, with no row: how
+ * several sound together is a later feature's question. */
 constexpr int kTrackedItems = 1;
 
 /* The item's position cue's mapping, as its settings hold it. */
@@ -41,22 +41,26 @@ struct TrackedItem {
     VoiceTargets targets;
 };
 
-/* The voices' items, nearest first; none for a voice with no item. */
+/* The voices' items, the one within reach first, then nearest first; none
+ * for a voice with no item. */
 using TrackedItems = std::array<std::optional<TrackedItem>, kTrackedItems>;
 
 class ItemPosition {
 public:
-    /* Once a tick: the nearest loose items' targets, or none for each voice
-     * while the cue is silent: outside a match, paused, before GO, from
-     * GAME! or TIME! on, with no loose item, and relative to you while you
-     * are out, since your place is then where you were knocked out. GO is
-     * the first tick with your input on, held through a respawn; on the
-     * stage the cue sounds on while you are out. Holding an item does not
-     * silence it: where the others are stays useful. An item becoming the
-     * nearest only moves the voice. Relative to you an item keeps its side
-     * until it is the crossing margin past you, as the opponent does; one
-     * newly tracked, or tracked again, takes its side afresh, an item
-     * exactly level with you sounding centred until it moves. */
+    /* Once a tick: the loose items' targets, the one within reach first,
+     * even when another lies nearer your feet, so the quick pace always
+     * means the button takes the item heard; then the nearest. None for
+     * each voice while the cue is silent: outside a match, paused, before
+     * GO, from GAME! or TIME! on, with no loose item, and relative to you
+     * while you are out, since your place is then where you were knocked
+     * out. GO is the first tick with your input on, held through a respawn;
+     * on the stage the cue sounds on while you are out. Holding an item
+     * does not silence it: where the others are stays useful. Another item
+     * taking the voice, by coming nearer or into reach, only moves it.
+     * Relative to you an item keeps its side until it is the crossing
+     * margin past you, as the opponent does; one newly tracked, or tracked
+     * again, takes its side afresh, an item exactly level with you sounding
+     * centred until it moves. */
     TrackedItems tick(const A11yMatchState& match, const ItemPositionMapping& mapping);
     /* The sides forgotten, after a silence: the next tick takes each afresh
      * from its snapshot. */
