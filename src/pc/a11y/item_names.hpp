@@ -2,7 +2,8 @@
 /* The items' names, as Item Switch draws them on the English screen, keyed by
  * the item rather than by any screen's order: Item Switch and the Training
  * menu list the same items in different orders, and an item is named the
- * same on both (.scratch/training-menu/spec.md, "Speech"). */
+ * same on both (.scratch/training-menu/spec.md, "Speech"). The containers,
+ * on no menu, have the trophies' names, so every common item has a name. */
 #pragma once
 #include "item_kinds.h"
 #include <optional>

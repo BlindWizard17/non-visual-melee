@@ -273,6 +273,20 @@ void item_names_match_item_switch() {
     assert(a11y::training_item(-1) == A11Y_NO_ITEM);
 }
 
+void item_names_name_every_common_item() {
+    /* The containers too, which no menu names: an item in a match may be any
+     * of the item switch's kinds. */
+    assert(*a11y::item_name(A11Y_It_Kind_Capsule) == "Capsule");
+    assert(*a11y::item_name(A11Y_It_Kind_Box) == "Crate");
+    assert(*a11y::item_name(A11Y_It_Kind_Taru) == "Barrel");
+    assert(*a11y::item_name(A11Y_It_Kind_Egg) == "Egg");
+    for (int kind = 0; kind < A11Y_ITEM_COMMON_KINDS; kind++) {
+        assert(a11y::item_name(static_cast<A11yItem>(kind)).has_value());
+    }
+    assert(!a11y::item_name(static_cast<A11yItem>(A11Y_ITEM_COMMON_KINDS)).has_value());
+    assert(!a11y::item_name(A11Y_NO_ITEM).has_value());
+}
+
 void hidden_row_is_never_named() {
     Fixture f;
     f.open();
@@ -502,6 +516,7 @@ int main() {
     every_row_and_the_wrap();
     every_value_word();
     item_names_match_item_switch();
+    item_names_name_every_common_item();
     hidden_row_is_never_named();
     reset_leaves_other_rows_unsaid();
     slow_series_is_said_in_full();

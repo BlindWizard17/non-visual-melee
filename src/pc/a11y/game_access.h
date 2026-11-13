@@ -5,6 +5,7 @@
 #pragma once
 #include "character_kinds.h"
 #include "css_kinds.h"
+#include "item_kinds.h"
 #include "stage_kinds.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -863,6 +864,47 @@ typedef struct A11yFloorBelow {
 /* Opponents the snapshot keeps: the nearest one for now. */
 enum { A11Y_MATCH_OPPONENTS = 1 };
 
+/* Items the snapshot keeps, nearest to you first: twice a Party Ball's
+ * burst of up to 15, made on one tick. The game lets 40 common items and
+ * 100 Food lie about at once, so only several Party Balls of Food could cut
+ * the list short. */
+enum { A11Y_MATCH_ITEMS = 32 };
+
+/* An item in the fork's sense (.scratch/items/spec.md, "Which items"): on
+ * the game's item list, of a common kind, and not made by a fighter, so
+ * character pulls, Pokémon and projectiles are never one. */
+typedef struct A11yMatchItem {
+    /* The game's serial (Item.x1C), counted up from 0 each match for every
+     * item made, projectiles included: it names one item as long as it
+     * lives and is never given again within a match. Container contents are
+     * new items with new serials. */
+    int serial;
+    A11yItem kind;
+    /* Item.pos, which is not the item's bottom: an item resting on a floor
+     * sits about 2 to 7 units above it. */
+    float x;
+    float y;
+    bool airborne;
+    /* Lying about for anyone to take: grabbable (Item_IsGrabbable), not
+     * held, and not flying after a throw. A thrown item stays thrown
+     * (Item.xDC8_word.flags.x14) through its bounces and off a wall, and is
+     * loose again once it comes to rest, when the game puts it into its
+     * state on the ground and clears the flag. A new item falling in is
+     * loose. So are the Starman and the Mushrooms, never grabbable since
+     * walking into them, not a press, takes them. */
+    bool loose;
+    /* The game's own test says pressing the button would take it now
+     * (ftpickupitem_800942A0, light and heavy items asked for): in the box
+     * in front of you, so facing away puts it out of reach, and while you
+     * hold an item only a healing one is in reach. The test's single
+     * nearest answer, so at most one item has it, and none while you are
+     * out. */
+    bool within_reach;
+    /* The slot whose fighter holds it (Item.xDC8_word.flags.x13), -1 for
+     * none: lying about, flying after a throw, or held by no fighter. */
+    int holder;
+} A11yMatchItem;
+
 typedef struct A11yMatchState {
     /* A match with your fighter in it is on, and the stage's frame is
      * known. Nothing below is filled otherwise. */
@@ -895,6 +937,13 @@ typedef struct A11yMatchState {
     int opponent_count;
     A11yMatchFighter opponents[A11Y_MATCH_OPPONENTS];
     A11yStageFrame stage;
+    /* The items, nearest to you first by straight-line distance from your
+     * feet, filled in paused ticks too (Training's item menu brings an item
+     * in while it holds the match). item_count are listed; items_in_match is
+     * how many there were, more only when the list was cut short. */
+    int item_count;
+    int items_in_match;
+    A11yMatchItem items[A11Y_MATCH_ITEMS];
 } A11yMatchState;
 
 /* Fills the snapshot after a simulated tick (pc_a11y_match_tick), and from
@@ -906,11 +955,23 @@ typedef struct A11yMatchState {
 void a11y_game_match_state(
     int local_port, bool online, uint64_t held_mask, float edge_offset, A11yMatchState* out);
 
-/* What the match's HUD shows of each player, read once a tick by the match
- * announcements (.scratch/match-announcements/spec.md; primer
- * docs/a11y/gameplay-state.md, "The HUD"). Slot i is player slot i; in VS
- * and online slot n plays on port n. */
+/* What the match's HUD shows of each player, and what each takes, read once
+ * a tick by the match announcements (.scratch/match-announcements/spec.md;
+ * primer docs/a11y/gameplay-state.md, "The HUD"). Slot i is player slot i;
+ * in VS and online slot n plays on port n. */
 enum { A11Y_MATCH_SLOTS = 6 };
+
+/* A fighter's hands: the item in hand (Fighter.item_gobj), a healing item
+ * taken while holding another (x1978), and the worn Bunny Hood (x197C). */
+enum { A11Y_MATCH_HANDS = 3 };
+
+/* An item in the fork's sense (A11yMatchItem) in a hand, or none. */
+typedef struct A11yMatchHeld {
+    /* Its serial (A11yMatchItem.serial); -1 for an empty hand or anything
+     * else held, such as a turnip or a Pokémon's ball a fighter made. */
+    int serial;
+    A11yItem kind;
+} A11yMatchHeld;
 
 typedef struct A11yMatchHudPlayer {
     /* The slot is in the match: not empty, and its fighter is on the live
@@ -943,6 +1004,20 @@ typedef struct A11yMatchHudPlayer {
      * copy of the game reads it from its own memory card, so online the
      * peer's is not reliable. */
     char tag[9];
+    /* The main fighter's hands. A take puts a serial into one: a pickup, a
+     * catch, the same item picked up again after a throw. A serial moving
+     * between hands (the Bunny Hood from item_gobj to x197C as it is put
+     * on) or kept through Zelda's and Sheik's change is no take. */
+    A11yMatchHeld hands[A11Y_MATCH_HANDS];
+    /* The game's tally of items taken, by kind (pl_8003E2CC, for the
+     * results' Items page): raised by one when the player first holds an
+     * item, and when they touch a Starman or a Mushroom, never for an item a
+     * fighter made, and not again for a re-pickup of the same item (its
+     * Item.xDC8_word.flags.xF marks who held it). It catches the takes the
+     * hands miss: a touch item never enters a hand, and an air catch (Z)
+     * of a healing item, a Metal Box or a Cloaking Device uses it up within
+     * the tick. Game state, so a rollback can lower it. */
+    int taken[A11Y_ITEM_COMMON_KINDS];
 } A11yMatchHudPlayer;
 
 typedef struct A11yMatchHud {

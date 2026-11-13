@@ -303,7 +303,7 @@ An item coming into a match, whatever brings it: the item switch dropping it in,
 _Avoid_: Spawn (the decomp's and the code's word, never the player's), drop
 
 **Loose item**:
-An item no one holds that is lying on the floor or falling after it appeared. One flying after a throw is not loose until it lands.
+An item no one holds that is lying on the floor or falling after it appeared. One flying after a throw is not loose until it comes to rest.
 _Avoid_: Free item, available item, grabbable item (that is the game's wider test)
 
 **Within reach**:

@@ -9,9 +9,12 @@ struct ItemWords {
     std::string_view name;
 };
 
-/* In Item Switch's order: the left column, then the right. The Motion-Sensor
- * Bomb is its US English name: the Training menu's code swaps that text in
- * for US English only (fn_80188EE8), the decomp calling it a Proximity Mine. */
+/* In Item Switch's order: the left column, then the right, then the four
+ * containers, which no menu shows: they come into a match only with the item
+ * switch's other items, and are named by the game's English trophies and
+ * manual. The Motion-Sensor Bomb is its US English name: the Training menu's
+ * code swaps that text in for US English only (fn_80188EE8), the decomp
+ * calling it a Proximity Mine. */
 constexpr ItemWords kItems[] = {
     {A11Y_It_Kind_Foods, "Food"},
     {A11Y_It_Kind_Tomato, "Maxim Tomato"},
@@ -44,6 +47,10 @@ constexpr ItemWords kItems[] = {
     {A11Y_It_Kind_Spycloak, "Cloaking Device"},
     {A11Y_It_Kind_TaruCann, "Barrel Cannon"},
     {A11Y_It_Kind_Kusudama, "Party Ball"},
+    {A11Y_It_Kind_Capsule, "Capsule"},
+    {A11Y_It_Kind_Box, "Crate"},
+    {A11Y_It_Kind_Taru, "Barrel"},
+    {A11Y_It_Kind_Egg, "Egg"},
 };
 
 }  // namespace

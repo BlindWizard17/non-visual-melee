@@ -13,6 +13,7 @@
 #include <melee/ft/forward.h>
 #include <melee/ft/inlines.h>
 #include <melee/ft/kinds/ftCommon/forward.h>
+#include <melee/ft/kinds/ftCommon/ftpickupitem.h>
 #include <melee/ft/types.h>
 #include <melee/gm/forward.h>
 #include <melee/gm/gm_16F1.h>
@@ -32,6 +33,10 @@
 #include <melee/if/ifstatus.h>
 #include <melee/if/types.h>
 #include <melee/it/forward.h>
+#include <melee/it/inlines.h>
+#include <melee/it/it_26B1.h>
+#include <melee/it/item.h>
+#include <melee/it/types.h>
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lbspdisplay.h>
 #include <melee/mn/forward.h>
@@ -40,6 +45,7 @@
 #include <melee/mn/types.h>
 #include <melee/mp/mplib.h>
 #include <melee/pl/forward.h>
+#include <melee/pl/plbonuslib.h>
 #include <melee/pl/player.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +70,9 @@ A11Y_STAGE_KINDS(A11Y_CHECK_NUMBER)
 A11Y_ITEM_KINDS(A11Y_CHECK_NUMBER)
 #undef A11Y_CHECK_NUMBER
 _Static_assert(A11Y_CSS_VS_CAMERA == VS_CAMERA, "VS_CAMERA no longer has the fork's number");
+_Static_assert(A11Y_ITEM_COMMON_KINDS == It_Kind_L_Gun_Ray, "the common items end elsewhere");
+_Static_assert(A11Y_ITEM_COMMON_KINDS <= Pl_ItemLog_Terminate,
+    "the tally of items taken no longer counts the common items by kind");
 
 /* The match rules before the players' data on character select have
  * bitfields. Laid out as MinGW does by default they take 144 bytes instead of
@@ -1207,6 +1216,120 @@ static void match_floor_below(
     }
 }
 
+/* The item's data when it is an item in the fork's sense (A11yMatchItem):
+ * of a common kind and not made by a fighter. The game clears
+ * Item.xDC8_word.flags.x1 for an item a fighter spawned (Item_8026862C),
+ * which leaves out Peach's Bob-omb though its kind is common, and Pokémon,
+ * whose owner is the ball's thrower. */
+static const Item* match_item(HSD_GObj* g) {
+    if (g->classifier != HSD_GOBJ_CLASS_ITEM || g->user_data == NULL) {
+        return NULL;
+    }
+    const Item* ip = GET_ITEM(g);
+    if ((int)ip->kind < 0 || (int)ip->kind >= A11Y_ITEM_COMMON_KINDS || !ip->xDC8_word.flags.x1) {
+        return NULL;
+    }
+    return ip;
+}
+
+/* An item in the fork's sense that a fighter's pointer names, or NULL: the
+ * pointer is followed only once found on the live item list. */
+static const Item* match_item_at(HSD_GObj* item) {
+    if (item == NULL) {
+        return NULL;
+    }
+    for (HSD_GObj* g = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_ITEM]; g != NULL; g = g->next) {
+        if (g == item) {
+            return match_item(g);
+        }
+    }
+    return NULL;
+}
+
+/* The slot of the fighter holding the item, or -1 (A11yMatchItem.holder).
+ * A pickup sets the held flag and the owner (it_802742F4), or for an item
+ * with flags.x0 keeps the owner and names the holder in x51C; a throw or a
+ * drop clears the flag and keeps the owner, the thrower. The holder counts
+ * only as a fighter on the live fighter list, Nana included. */
+static int match_item_holder(const Item* ip) {
+    if (!ip->xDC8_word.flags.x13) {
+        return -1;
+    }
+    HSD_GObj* holder = ip->xDC8_word.flags.x0 ? ip->x51C : ip->owner;
+    if (holder == NULL) {
+        return -1;
+    }
+    for (HSD_GObj* g = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]; g != NULL; g = g->next) {
+        if (g == holder) {
+            if (g->classifier != HSD_GOBJ_CLASS_FIGHTER) {
+                return -1;
+            }
+            int slot = GET_FIGHTER(g)->player_idx;
+            return slot >= 0 && slot < Gm_Player_NumMax ? slot : -1;
+        }
+    }
+    return -1;
+}
+
+/* The items in the fork's sense, nearest to you first (A11yMatchState.items),
+ * and the one within your reach while you are in play. The reach test is the
+ * game's own (ftpickupitem_800942A0), which the pickup itself makes: it
+ * walks the item list and reads the fighter's pickup boxes, writing nothing
+ * and drawing no random number, so a call between ticks leaves no trace. */
+static void match_items(int your_slot, const Fighter* you, A11yMatchState* out) {
+    HSD_GObj* reach = NULL;
+    if (!out->you.out) {
+        HSD_GObj* entity = Player_GetEntity(your_slot);
+        if (entity != NULL) {
+            reach = ftpickupitem_800942A0(entity, 3);
+        }
+    }
+    float distances[A11Y_MATCH_ITEMS]; /* squared, beside items */
+    for (HSD_GObj* g = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_ITEM]; g != NULL; g = g->next) {
+        const Item* ip = match_item(g);
+        if (ip == NULL) {
+            continue;
+        }
+        out->items_in_match++;
+        A11yMatchItem item;
+        item.serial = ip->x1C;
+        item.kind = (A11yItem)ip->kind;
+        item.x = ip->pos.x;
+        item.y = ip->pos.y;
+        item.airborne = ip->ground_or_air == GA_Air;
+        item.holder = match_item_holder(ip);
+        /* A Starman or a Mushroom is never grabbable (it has no pickup
+         * callback), and is taken by walking into it. */
+        bool touch =
+            ip->kind == It_Kind_Star || ip->kind == It_Kind_Kinoko || ip->kind == It_Kind_DKinoko;
+        item.loose =
+            (touch || Item_IsGrabbable(g)) && !ip->xDC8_word.flags.x13 && !ip->xDC8_word.flags.x14;
+        item.within_reach = g == reach;
+        float dx = item.x - you->cur_pos.x;
+        float dy = item.y - you->cur_pos.y;
+        float squared = dx * dx + dy * dy;
+        /* Into its place by distance, the farthest falling off a full
+         * list. */
+        int at = out->item_count;
+        while (at > 0 && distances[at - 1] > squared) {
+            at--;
+        }
+        if (at >= A11Y_MATCH_ITEMS) {
+            continue;
+        }
+        int last = out->item_count < A11Y_MATCH_ITEMS ? out->item_count : A11Y_MATCH_ITEMS - 1;
+        for (int i = last; i > at; i--) {
+            out->items[i] = out->items[i - 1];
+            distances[i] = distances[i - 1];
+        }
+        out->items[at] = item;
+        distances[at] = squared;
+        if (out->item_count < A11Y_MATCH_ITEMS) {
+            out->item_count++;
+        }
+    }
+}
+
 /* The slot the local player plays: see A11yMatchState.you. */
 static int match_your_slot(int local_port, bool online) {
     int first_human = -1;
@@ -1287,6 +1410,7 @@ void a11y_game_match_state(
     if (!out->you.out) {
         match_floor_below(you, edge_offset, stage->blast_bottom, &out->below);
     }
+    match_items(your_slot, you, out);
 }
 
 _Static_assert(A11Y_MATCH_SLOTS == Gm_Player_NumMax, "the game keeps another number of slots");
@@ -1325,6 +1449,17 @@ void a11y_game_match_hud(int local_port, bool online, A11yMatchHud* out) {
          * start from the player's choice on character select, and to none
          * for a fighter a single-player mode spawns mid-match. */
         copy_name_tag(Player_GetNametagSlotID(slot), player->tag);
+        HSD_GObj* const hands[A11Y_MATCH_HANDS] = {fp->item_gobj, fp->x1978, fp->x197C};
+        for (int hand = 0; hand < A11Y_MATCH_HANDS; hand++) {
+            const Item* ip = match_item_at(hands[hand]);
+            player->hands[hand].serial = ip != NULL ? ip->x1C : -1;
+            player->hands[hand].kind = ip != NULL ? (A11yItem)ip->kind : A11Y_NO_ITEM;
+        }
+        /* Indexed by kind for the common items (match_item_kind,
+         * plbonuslib.c). */
+        for (int kind = 0; kind < A11Y_ITEM_COMMON_KINDS; kind++) {
+            player->taken[kind] = (int)pl_8003E2CC(slot, (Pl_ItemLog)kind);
+        }
     }
     if (!out->match) {
         return;

@@ -2,13 +2,19 @@
 /* ItemKind (src/melee/it/forward.h) mirrored for fork code, which does not
  * include the decomp's headers. game_access.c checks every number against the
  * decomp's own at compile time, so a base merge that renumbers the items
- * fails the build instead of naming the wrong one. Only the items a menu names
- * are here: Item Switch's 31, of which the Training menu offers all but the
- * Party Ball. */
+ * fails the build instead of naming the wrong one. The common items are
+ * here, the 35 kinds the item switch controls (.scratch/items/spec.md, "Which
+ * items"): Item Switch names 31 of them, the Training menu all those but the
+ * Party Ball, and the four containers come into a match unnamed by any
+ * menu. */
 #pragma once
 
-/* X(name, number) for every item a menu names, in the decomp's order. */
+/* X(name, number) for every common item, in the decomp's order. */
 #define A11Y_ITEM_KINDS(X)                                                                         \
+    X(It_Kind_Capsule, 0x00)                                                                       \
+    X(It_Kind_Box, 0x01)                                                                           \
+    X(It_Kind_Taru, 0x02)                                                                          \
+    X(It_Kind_Egg, 0x03)                                                                           \
     X(It_Kind_Kusudama, 0x04)                                                                      \
     X(It_Kind_TaruCann, 0x05)                                                                      \
     X(It_Kind_BombHei, 0x06)                                                                       \
@@ -50,3 +56,7 @@ typedef enum A11yItem {
     A11Y_ITEM_KINDS(A11Y_ITEM_ENUMERATOR)
 #undef A11Y_ITEM_ENUMERATOR
 } A11yItem;
+
+/* How many common kinds there are, numbered from 0: the items in the fork's
+ * sense are of a kind below it. */
+enum { A11Y_ITEM_COMMON_KINDS = 0x23 };

@@ -392,7 +392,13 @@ The list holds far more than the item switch's items: projectiles (Fox's laser, 
 
 The sections are marked with `@name` comments in `forward.h`. Kind 0xA0 is also reused for the invisible hit areas of stage hazards such as cars and lava.
 
-`Item_IsGrabbable(gobj)` says whether the item is in a state anyone could pick up: lying loose, not held. Reach and weight are checked separately ([Within reach](#pickup-throw-use)). It also covers pickable character items such as Peach's turnips. There is no item name text in a match, so the fork names items itself: `item_names.cpp` holds the fork's item names keyed by `ItemKind` (`item_kinds.h`), so far the items the menus name (Item Switch and the Training menu), and match items would extend that table. (Training's item menu has names for 30 common items in `SdTrain.dat`, loaded only in Training.)
+`Item_IsGrabbable(gobj)` says whether the item is in a state anyone could pick up: lying loose, not held. Reach and weight are checked separately ([Within reach](#within-reach)). It also covers pickable character items such as Peach's turnips. The Starman and the Super and Poison Mushrooms are never grabbable: they have no pickup callback, since walking into them takes them ([Taking an item](#taking-an-item)). There is no item name text in a match, so the fork names items itself: `item_names.cpp` holds the fork's item names keyed by `ItemKind` (`item_kinds.h`), every common item, the four containers by their trophies' names since no menu shows them. (Training's item menu has names for 30 common items in `SdTrain.dat`, loaded only in Training.)
+
+### Items in the fork's sense
+
+The fork's items (`CONTEXT.md`, `.scratch/items/spec.md`) are those on the list of a common kind and not made by a fighter. `Item_8026862C` clears `xDC8_word.flags.x1` when the spawner is a fighter, which covers character pulls (Peach's Bob-omb, though its kind is common) and Pokémon, whose owner is the ball's thrower; item switch spawns, container contents and Training's spawns have it set. The flag alone is not enough: stage hazards' hit areas (kind 0xA0) have it set too, so the kind test stays. The match snapshot keeps the items (`a11y_game_match_state`, `A11yMatchItem` in `game_access.h`), nearest to you first.
+
+The game caps how many may lie about at once by hold kind: 40 common items and 100 Food (`Item_804A0C64`, from the item data, measured), and 12 Training spawns. A Party Ball drops up to 15 items on one tick (`itkusudama.c`).
 
 ### Spawning
 
@@ -404,11 +410,35 @@ Every item is created by `Item_8026862C` (`src/melee/it/item.c`), through `Item_
 
 Measured on Battlefield with items at Very High: a Party Ball appeared at (56, 55.9) above the right platform and settled at (56, 34.0); a Proximity Mine appeared at (-24, 71.8) and landed on the left platform. An item's `pos` is not its bottom: on a platform at y = 27.2, items rested at y = 29.2 to 34.
 
-### Pickup, throw, use
+- **The serial** (`x1C`) comes from a counter, `it_804D6D10`, set to 0 as a match's items are set up and raised for every item made, projectiles included, so serials only grow within a match, and a new item is one whose serial was not there last tick.
+- **The appearing tick** (the items spec's open question 3): an item shows on the list on the tick it is made, where it came in. An item switch spawn is made before the items' own updates run, so on its first tick it has had one tick of gravity, 0.07 units below its spawn point (measured on Fourside). Training's spawn is made after them, at your feet, and only on its next tick rises about 2.4 units onto the ground's surface.
+- **Training's item menu** (open question 5): A on Item makes the item at once, while the menu holds the match. A Training pause stands the fighters still but not the items: while the menu stays open, an item made then settles, and a Mushroom walks off.
+- **With items on**: a VS match started from character select has items on at the rules' default frequency, so the drive scripts' VS matches meet them (a Capsule after about 12 seconds on Fourside, measured); the debug match (`MELEE_DEBUG_VS`) has them off, since `onEnterDebugVs` sets `item_freq` to -1.
 
-- **Held**: `fp->item_gobj` on the fighter is the item in hand, NULL for none. Comparing it with last tick's caught the CPU Mario picking up the Proximity Mine and letting go when he threw it.
-- **The pickup itself**: `ftpickupitem_800948A8(fighter, item)` (`src/melee/ft/kinds/ftCommon/ftpickupitem.c`) is the fighter's side and `Item_8026AB54` the item's. Healing items, the Metal Box and the Cloaking Device sit in `item_gobj` during the pickup animation and are then used up, so they leave the hand without being thrown. The Hammer and the Warp Star put the fighter into states of their own, and the Bunny Hood is worn.
-- **Within reach**: `ftpickupitem_800942A0(fighter_gobj, flags)` finds, without changing anything, the nearest item the fighter could pick up now, searching in front of the fighter, so the answer depends on which way it faces; `flags` bit 0 asks for light items and bit 1 for heavy ones (crates, barrels), and the game passes 3. A candidate for "you can pick something up here".
+### Held, thrown, loose
+
+The item's flag word `xDC8_word.flags` holds its part in a pickup:
+
+- **`x13`, held.** A pickup or a catch (`it_802742F4`) sets it, sets `owner` to the taker (or, for an item with `flags.x0`, keeps the owner and names the taker in `x51C`), clears `x15` and ORs the taker's slot bit into `xF`. A throw or a drop (`it_80273F34`) clears it and keeps `owner`, the thrower.
+- **`x14`, thrown.** Set by a throw or a drop, and cleared whenever the item changes state (`Item_80268E5C`): it stays set through a thrown item's bounces (`xD50_landNum` counts them) and off a wall, and clears once the item comes to rest in its state on the ground, where it lies loose again. Measured: a Ray Gun thrown upwards bounced twice with `x14` still set and lay loose 35 ticks after its first landing; a CPU's thrown Super Scope came to rest the same way. A thrown item can also break as it lands (`it_8026DDFC`, a chance that grows with its throws) or fall off the stage.
+- **`x15`, grabbable**, with a pickup callback (`Item_IsGrabbable`): set while the item lies loose and again after a throw, so a flying thrown item can be caught, and is in reach of the test below.
+- **`xF`, who has held it**, one bit per slot in a four-bit field, so slots 4 and 5 never mark it. Never cleared while the item lives.
+
+So the fork's **loose** is grabbable, or a touch item, and neither held nor thrown. A new item falling in is loose and can be in reach.
+
+### Taking an item
+
+- **Into the hand.** `ftpickupitem_800948A8(fighter, item)` (`src/melee/ft/kinds/ftCommon/ftpickupitem.c`) is the fighter's side and `Item_8026AB54` the item's; the air catch with Z is `fn_800D6F58` (`ftCo_Attack100.c`) and the dash catch `fn_800D8BFC` (`ftCo_Catch.c`). The item goes to `fp->item_gobj`, or to `fp->x1978` when that hand is full (only a healing item can be taken then). Healing items, the Metal Box and the Cloaking Device sit in the hand through the pickup animation (6 ticks for Food, measured) and are then used up, so they leave the hand without being thrown; the air catch uses them up within the tick. The Hammer and the Warp Star stay in `item_gobj` while the fighter is in their own states, and the Bunny Hood moves to `fp->x197C`, worn. Zelda's and Sheik's change hands the held item to the other form.
+- **By touch.** The Starman and the Super and Poison Mushrooms never enter a hand. A fighter's hurtbox meeting one (`ftColl_80077C60`, `ftcoll.c`) sets the item's `xC34_damageDealt`, applies the effect, and the item is gone by the end of the tick. No field meant for it keeps who touched it.
+- **The tally.** `pl_8003E17C` raises a per-slot count of items taken, by kind (`x674` in the slot's stale move table, read with `pl_8003E2CC(slot, kind)`, for the results' Items page), on a pickup, a catch and a touch alike, on the same tick as the take. It counts only an item no fighter made, and only on that slot's first hold of it (the `xF` bit), so it misses a re-pickup; it also counts a Metal Box broken by an attack, which applies the metal as a pickup does. Measured: a Super Mushroom you touched and a Poison Mushroom the Training CPU walked into each raised its taker's count on the tick the item left the list; a Ray Gun picked up again after a throw raised nothing.
+- **How the fork sees a take** (the answer to the items spec's open question 1). The match HUD snapshot (`a11y_game_match_hud`) gives each slot its three hands by serial (`A11yMatchHudPlayer.hands`) and its tally by kind (`taken`). A reader compares both with last tick's. A serial new to the slot's hands, taken as a set, is a take of its kind: a pickup, a catch, a re-pickup. The Bunny Hood moving from `item_gobj` to `x197C`, or an item carried through Zelda's change, is no take. Then each kind whose tally rose by more than the slot's hand takes of that kind this tick gives that many takes more: a touch, a healing item used up within the tick, the attacked Metal Box. A tally that falls (a rollback) gives none. The tally names the slot that touched, which the item does not.
+
+### Within reach
+
+`ftpickupitem_800942A0(fighter_gobj, flags)` returns the nearest item the fighter could take now, or NULL. It writes nothing and draws no random number, its callees only reading, so the match snapshot calls it between ticks as it does the floor cast. It tests a box in front of the fighter (`fp->x294_itPickup`: a ground box, an air box and a heavy box, scaled from the character's data), grown by the item's `xBD4_grabRange`, against the item's grab point (`pos` plus `xBCC_unk`, `it_8026B344`); in the air it uses the air box. While the fighter holds an item only healing items and coins qualify. `flags` bit 0 asks for light items and bit 1 heavy ones (crates, barrels); the game passes 3. It does not check whether the fighter can act; its callers do. Measured in Training: an item spawned at Pichu's feet was in reach while he faced it, out of reach once he turned away and in reach again once he turned back, and a thrown item flying in front of him was in reach. A touch item is never in reach.
+
+### Gone, and ammunition
+
 - **Gone**: every item ends in `Item_8026A8EC`. Common items left lying loose count `xD44_lifeTimer` down (about 1400 ticks, 23 seconds, measured), blink near the end and vanish.
 - **Ammunition**: `xD4C` on the item, for the Ray Gun, Super Scope, Star Rod, Lip's Stick and Fire Flower (the Hammer uses it for whether its head is still on); the Hammer's time is on the fighter.
 
