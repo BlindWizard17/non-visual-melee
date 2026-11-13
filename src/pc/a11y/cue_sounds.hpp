@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Making cue sounds, at engine start: a cue's sound is a mono buffer
- * (Sound, cue_engine.hpp), filled here by code or from any miniaudio data
- * source, a decoded file later included. */
+ * (Sound, cue_engine.hpp), filled here by code, from any miniaudio data
+ * source, or from a file. */
 #pragma once
 #include "cue_engine.hpp"
+#include <string>
 
 /* miniaudio.h's own declaration, so including this header does not pull in
  * all of miniaudio. */
@@ -30,5 +31,17 @@ void fade_out(Sound& sound, float seconds);
 /* Silence of the given length before the sound: room for the start ramp, so
  * it does not eat the sound's attack. */
 void lead_in(Sound& sound, float seconds);
+
+/* The lead-in a pulse or one-shot needs, about twice the start ramp, the
+ * Star Fox 64 fork's finding. tools/a11y/prepare_sounds.py counts it in its
+ * report: change both together. */
+constexpr float kLeadInSeconds = 0.012f;
+
+/* A sound from a file, its path UTF-8: WAV, FLAC or MP3, any rate and
+ * channel count, decoded by miniaudio to mono at kCueRate, with kLeadInSeconds
+ * before it, as tools/a11y/prepare_sounds.py leaves files without. Empty when
+ * the file is missing or cannot be decoded, which is logged naming the file
+ * and why: the cue playing it stays silent. */
+Sound load_sound(const std::string& path);
 
 }  // namespace a11y

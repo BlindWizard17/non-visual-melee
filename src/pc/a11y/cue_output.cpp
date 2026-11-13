@@ -13,6 +13,11 @@ constexpr int kChunk = 256;
 
 }  // namespace
 
+std::string cue_sound_folder() {
+    const char* base = SDL_GetBasePath();
+    return std::string(base != nullptr ? base : "") + "resources/a11y/";
+}
+
 std::unique_ptr<CueOutput> CueOutput::open(CueEngine& engine, bool log, std::string& why) {
     std::unique_ptr<CueOutput> output(new CueOutput(engine));
     /* Counted by SDL, so the game's own audio and this one start and stop

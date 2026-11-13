@@ -26,7 +26,7 @@ master, mix and cue levels  --->  pulses retriggered on the audio clock
 - **Pitch by playback rate**, with 4-point interpolation, so a pulse's attack stays sharp. A pitch shifter would smear it (the Star Fox 64 fork pinned its aim click to playback rate for that reason).
 - **A long pulse is cut with a fade.** A pulse still playing when the next is due, its sound longer than the interval at its pitch, fades out over the stop ramp, where it was, as the next starts from the top. A slow pace so plays a long sound whole, and a fast one its start. A sound that ends inside its fastest interval at its lowest pitch, as every match cue's does, is never cut and sounds as it did before cuts existed. The engine holds every interval and pitch target to the voice's fastest interval and lowest pitch.
 - **Alternating voices.** Two pulsed voices of one interval can be paired when the second is created (`alternates_with`). One of the pair starting from silence while the other sounds waits for the midpoint between the other's pulses, so the two alternate instead of landing together; started on the same tick, the one created later usually waits half an interval. The audio thread places it, so it holds whatever block size the device asks for.
-- **Leave room for the ramp.** A short click should start with about 12 ms of silence, so the start ramp does not eat its attack (`lead_in` in `cue_sounds.hpp`, the Star Fox 64 fork's finding).
+- **Leave room for the ramp.** A short click should start with about 12 ms of silence, so the start ramp does not eat its attack (`lead_in` and `kLeadInSeconds` in `cue_sounds.hpp`, the Star Fox 64 fork's finding). A sound from a file gets it as it loads.
 - **Threads.** The game thread writes, the audio thread reads; every shared value is an atomic and nothing is locked. Voices are added and never removed while the engine runs, so the audio thread can walk them without a lock.
 
 ## The one-shot voice
@@ -52,9 +52,19 @@ Speech's two voices, your voice and the opponents' voice (`docs/a11y/speech.md`,
 
 ## Sounds
 
-Each cue's sound is made by code when the engine starts, as a `Sound` buffer: `cue_sounds.cpp` reads one from any miniaudio data source (a waveform, noise, later a decoded file) and shapes its edges. A sound from a file fills the same kind of buffer, so changing a cue to a file changes its definition, not the engine.
+Each cue's sound is made when the engine starts, as a `Sound` buffer: `cue_sounds.cpp` reads one from any miniaudio data source (a waveform, noise) and shapes its edges, or loads one from a file. Either way it is the same kind of buffer, so changing a cue to a file changes its definition, not the engine.
 
-miniaudio 0.11.25 is downloaded at configure and compiled once into its own library (`a11y_miniaudio` in `a11y.cmake`), without its device code: SDL plays the mix. The engine renders the voices itself, since the per-sample glides and pulse timing need it; miniaudio supplies the generators and, later, file decoding. Keep it at 0.11.25 or later should a cue ever play through miniaudio's own sounds: 0.11.21 crackled on every pitch change (ADR-0005).
+miniaudio 0.11.25 is downloaded at configure and compiled once into its own library (`a11y_miniaudio` in `a11y.cmake`), without its device code: SDL plays the mix. The engine renders the voices itself, since the per-sample glides and pulse timing need it; miniaudio supplies the generators and the file decoding. Keep it at 0.11.25 or later should a cue ever play through miniaudio's own sounds: 0.11.21 crackled on every pitch change (ADR-0005).
+
+### Sounds from files
+
+The item cues play recorded sounds the maintainer supplies, free to use, rather than sounds made by code.
+
+- **Prepared by a script.** `tools/a11y/prepare_sounds.py`, run with `uv run` (uv installs numpy and soundfile from the script's own metadata block), takes an original by path, WAV or FLAC at any rate and channel count, and writes `resources/a11y/<name>.wav`, mono, 48 kHz: silence trimmed at both ends, the end faded over a few milliseconds so the trim never clicks, the peak normalized to just under full scale. The balance between cues is set by ear through each cue's volume and boost, not in the file. Its report gives the length and the fastest pace at which a pulse plays whole at the cue's lowest pitch (`--lowest-pitch`, in octaves down), so a pace that cuts the sound is known before it is heard. Its `--help` has the thresholds; `tools/a11y/test_prepare_sounds.py` is its test.
+- **The originals stay outside git; the prepared files are committed**, so a cue dump compares with exactly what plays and the game does no processing at start. `resources/a11y/CREDITS.txt` names each file's source and licence, and ships with them.
+- **No lead-in in the file.** `load_sound` puts the engine's lead-in (`kLeadInSeconds`) before the sound as it loads it, as the generated sounds get theirs, since a pulse and a one-shot ramp in at every play. The script counts the lead-in in its report: change the two together.
+- **Loading.** `load_sound(path)` decodes through `ma_decoder`, asked for mono floats at 48 kHz, so a file at another rate or channel count is converted as it loads, though the script's files need neither. The file is read into memory through a filesystem path made from the UTF-8 text first: miniaudio's own file reading takes the Windows code page and would miss an install folder with letters outside ASCII. The folder is `cue_sound_folder()` (`cue_output.cpp`, the engine's SDL side): `resources/a11y/` in SDL's base path, beside `melee.exe`, as the base port finds its own resources. The base port's build copies all of `resources/` beside `melee.exe` and its packaging scripts copy it into the packages, so the files ship with no base port file touched.
+- **A missing or unreadable file** gives an empty sound and a log line naming the file and why; the engine refuses a voice with no sound, so that cue stays silent and the rest of the cues play on.
 
 ## Lifecycle and switches
 

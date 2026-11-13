@@ -22,8 +22,8 @@ namespace a11y {
 /* The mix's rate, and the rate every sound is made at. */
 constexpr int kCueRate = 48000;
 
-/* A cue's sound: mono samples at kCueRate, made by code (cue_sounds.hpp) or,
- * later, decoded from a file. */
+/* A cue's sound: mono samples at kCueRate, made by code or loaded from a
+ * file (cue_sounds.hpp). */
 struct Sound {
     std::vector<float> samples;
 

@@ -2,7 +2,8 @@
 /* The cue engine rendered into buffers, with no device. This file supplies
  * the pc_log_line that main.c normally provides. Its one argument is where
  * to write a dump of a known pulse train, which tools/a11y/test_cue_dump.py
- * then reads back through the dump analysis script. */
+ * then reads back through the dump analysis script; the sound files' tests
+ * write theirs in a folder beside it. */
 #include "cue_engine.hpp"
 #include "cue_sounds.hpp"
 #include "miniaudio.h"
@@ -10,7 +11,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -794,6 +797,75 @@ void a_pool_overlaps_and_takes_the_oldest() {
     assert(partial.trigger(small, placed(0.0f, 1.0f)) != -1);
 }
 
+/* A 16-bit PCM WAV of frames frames, each channel holding its constant. */
+void write_wav(
+    const std::filesystem::path& path, int rate, const std::vector<float>& channels, int frames) {
+    const auto put = [](std::ofstream& file, uint32_t value, int bytes) {
+        for (int i = 0; i < bytes; i++) {
+            file.put(static_cast<char>((value >> (8 * i)) & 0xFF));
+        }
+    };
+    const uint32_t count = static_cast<uint32_t>(channels.size());
+    const uint32_t data = static_cast<uint32_t>(frames) * count * 2;
+    std::ofstream file(path, std::ios::binary);
+    file.write("RIFF", 4);
+    put(file, 36 + data, 4);
+    file.write("WAVEfmt ", 8);
+    put(file, 16, 4);
+    put(file, 1, 2); /* PCM */
+    put(file, count, 2);
+    put(file, static_cast<uint32_t>(rate), 4);
+    put(file, static_cast<uint32_t>(rate) * count * 2, 4);
+    put(file, count * 2, 2);
+    put(file, 16, 2);
+    file.write("data", 4);
+    put(file, data, 4);
+    for (int i = 0; i < frames; i++) {
+        for (float value : channels) {
+            put(file, static_cast<uint16_t>(static_cast<int16_t>(value * 32767.0f)), 2);
+        }
+    }
+}
+
+/* A file at another rate and channel count comes out mono at the cue rate,
+ * after the lead-in's silence; a folder or name outside ASCII is found. */
+void a_sound_file_loads_mono_at_the_cue_rate(const std::filesystem::path& folder) {
+    std::filesystem::create_directories(folder);
+    const std::filesystem::path path = folder / u8"ääni.wav";
+    write_wav(path, 24000, {0.25f, 0.25f}, 2400);
+    s_lines.clear();
+    const std::u8string utf8 = path.u8string();
+    Sound sound = a11y::load_sound(std::string(utf8.begin(), utf8.end()));
+    assert(s_lines.empty());
+    const int lead = static_cast<int>(a11y::kLeadInSeconds * kCueRate);
+    const int size = static_cast<int>(sound.samples.size());
+    assert(std::abs(size - (lead + kCueRate / 10)) <= 2);
+    for (int i = 0; i < lead; i++) {
+        assert(sound.samples[static_cast<size_t>(i)] == 0.0f);
+    }
+    const float middle = sound.samples[static_cast<size_t>(lead + kCueRate / 20)];
+    assert(std::abs(middle - 0.25f) < 0.01f);
+}
+
+/* A missing file and one that is no sound give an empty sound and one line
+ * naming the file and why. */
+void a_sound_file_missing_or_unreadable_is_silent(const std::filesystem::path& folder) {
+    std::filesystem::create_directories(folder);
+    const std::string missing = (folder / "missing.wav").string();
+    std::filesystem::remove(missing);
+    s_lines.clear();
+    assert(a11y::load_sound(missing).samples.empty());
+    assert(s_lines.size() == 1);
+    assert(s_lines[0] == "[a11y] cue sound " + missing + " not loaded: no such file");
+
+    const std::string text = (folder / "text.wav").string();
+    std::ofstream(text) << "not a sound";
+    s_lines.clear();
+    assert(a11y::load_sound(text).samples.empty());
+    assert(s_lines.size() == 1);
+    assert(s_lines[0].starts_with("[a11y] cue sound " + text + " not loaded: cannot decode ("));
+}
+
 void the_trace_has_a_line_per_voice_each_tick(const std::string& path) {
     {
         CueEngineOptions options;
@@ -865,6 +937,8 @@ int main(int argc, char** argv) {
     a_one_shot_takes_its_cue_level();
     a_one_shot_retriggered_restarts_without_a_click();
     a_pool_overlaps_and_takes_the_oldest();
+    a_sound_file_loads_mono_at_the_cue_rate(dump + ".sounds");
+    a_sound_file_missing_or_unreadable_is_silent(dump + ".sounds");
     the_trace_has_a_line_per_voice_each_tick(dump + ".trace");
     write_pulse_train(dump);
     std::cout << "cue_engine: all tests passed\n";
