@@ -13,6 +13,7 @@
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,16 @@ struct Sound {
 
 enum class VoiceMode {
     looped, /* the sound over and over, without a seam */
-    pulsed, /* the sound once every interval, silence between */
+    /* The sound once every interval, silence between. A pulse still
+     * playing when the next is due fades out over the stop ramp as the next
+     * starts from the top: a slow pace plays a long sound whole, a fast one
+     * its start. */
+    pulsed,
+    /* The sound once from its start at each trigger, at the trigger's
+     * targets, ramped in and out, then silence: a cue's sound for a moment,
+     * through its cue's level like any cue voice. A trigger while it plays
+     * restarts it, the old play fading out as for a cut pulse. */
+    one_shot,
     /* A sound handed over at run time by play, played once from its start:
      * a voice's line (voices.hpp). Added with no sound; centred unless its
      * pan says otherwise, at pitch 1. Its chain is the master volume × its
@@ -57,9 +67,8 @@ struct VoiceSpec {
     int cue = 0;      /* the cue whose level it takes, 0 to kMaxCues - 1 */
     Sound sound;      /* none for a once voice */
     VoiceMode mode = VoiceMode::looped;
-    /* Targets are held to these. A pulsed voice's sound must end inside its
-     * fastest interval even at its lowest pitch, where it plays longest, or
-     * every pulse would be cut by the next: such a voice is refused. */
+    /* Targets are held to these. A pulsed voice's sound longer than its
+     * interval, at its pitch, is cut by the next pulse. */
     float fastest_interval = 0.05f;
     float lowest_pitch = 0.5f;
     /* Pulsed: a pulsed voice added earlier, not yet paired, whose interval
@@ -95,8 +104,11 @@ struct CueEngineOptions {
 
 class CueEngine {
 public:
-    static constexpr int kMaxVoices = 16;
-    static constexpr int kMaxCues = 16;
+    /* Room for the match cues and the item cues with their one-shot pool,
+     * each with its preview twin, the two speech voices, and several
+     * tracked items later. */
+    static constexpr int kMaxVoices = 32;
+    static constexpr int kMaxCues = 32;
     /* The largest boost a cue level takes; cue settings offer up to it. */
     static constexpr float kMostBoost = 8.0f;
 
@@ -112,15 +124,21 @@ public:
     /* Starting a voice that plays changes only its targets; a pulsed voice
      * started from silence pulses at once. Each start and stop is logged
      * with the voice's targets. A once voice is not started: play starts
-     * it. */
+     * it; nor a one-shot: trigger does. */
     void start(int voice, const VoiceTargets& targets);
+    /* A one-shot's sound once from its start, at the targets, logged as
+     * its play line; one playing fades out as it begins. False, with a log
+     * line, for a voice that is not a one-shot. */
+    bool trigger(int voice, const VoiceTargets& targets);
+    /* A once voice or a one-shot playing glides to the new targets too. */
     void set_targets(int voice, const VoiceTargets& targets);
     /* A once voice's stop ramps its sound out and drops one handed over and
-     * not yet begun; neither is logged. */
+     * not yet begun; a one-shot's ramps its play out and drops a trigger
+     * not yet begun. Neither is logged. */
     void stop(int voice);
     void stop_all();
-    /* A once voice plays from play until its sound has played out or
-     * ramped out, as the audio thread finds. */
+    /* A once voice plays from play, and a one-shot from trigger, until its
+     * sound has played out or ramped out, as the audio thread finds. */
     bool playing(int voice) const;
     /* A once voice's next sound, at its targets. It begins at once,
      * ramping in; one sounding is cut with the stop ramp first, and one
@@ -175,6 +193,16 @@ private:
         int stops_seen = 0;
         bool cutting = false; /* current ramps out with nothing after it */
     };
+    /* A play cut by the next, fading out over the stop ramp where it was:
+     * a pulse cut by the next pulse, a one-shot by its next trigger. Audio
+     * thread only. */
+    struct Tail {
+        double position = 0.0;
+        float fade = 0.0f; /* the play's level, down to 0: none left */
+        float pan = 0.0f;
+        float pitch = 1.0f;
+        float gain = 0.0f;
+    };
     struct Voice {
         /* Fixed once published. */
         VoiceSpec spec;
@@ -187,6 +215,11 @@ private:
         /* The voice it alternates with, both ways, or -1: set as voices are
          * added. */
         std::atomic<int> partner{-1};
+        /* A one-shot's triggers, counted by the game thread, and the count
+         * the audio thread has taken; busy while a play sounds. */
+        std::atomic<int> triggers{0};
+        std::atomic<int> triggers_taken{0};
+        std::atomic<bool> busy{false};
         /* Game thread only: for its log and trace lines. */
         bool started = false;
         VoiceTargets targets;
@@ -198,6 +231,7 @@ private:
         float pan_now = 0.0f;
         float pitch_now = 1.0f;
         float gain_now = 0.0f; /* the whole chain, glided */
+        Tail tail;
         Once once;
     };
 
@@ -206,6 +240,9 @@ private:
     void log_voice(const Voice& v, const char* event) const;
     void render_voice(Voice& v, float chain, float* out, int frames);
     void render_once(Voice& v, float chain, float* out, int frames);
+    void render_one_shot(Voice& v, float chain, float* out, int frames);
+    /* The tail's next frame, at its fade times level, added into frame. */
+    static void add_tail(Tail& tail, const std::vector<float>& samples, float level, float* frame);
     void fall_between(Voice& v, double interval, int frames) const;
 
     CueEngineOptions m_options;
@@ -216,6 +253,34 @@ private:
     std::array<AtomicLevel, kMaxCues> m_cues;
     std::FILE* m_dump = nullptr;
     std::FILE* m_trace = nullptr;
+};
+
+/* A cue's one-shot voices of one sound, for plays that may overlap: several
+ * items appearing on one tick each sound. A trigger takes a voice not
+ * playing, or, when every voice plays, the one triggered longest ago, whose
+ * play then fades out as the new one starts. Game thread only, like the
+ * engine's own calls. */
+class OneShotPool {
+public:
+    static constexpr int kSize = 4;
+
+    /* Adds the pool's voices, each made from spec, a one-shot's, named
+     * "<name> 1" to "<name> 4" in log and trace lines. False when the
+     * engine refuses one, with its log line: the pool keeps those it got. */
+    bool add(CueEngine& engine, const VoiceSpec& spec);
+    /* Plays the sound once at the targets; the voice taken, or -1 for a
+     * pool with no voice. */
+    int trigger(CueEngine& engine, const VoiceTargets& targets);
+    void stop(CueEngine& engine);
+    bool playing(const CueEngine& engine) const;
+    std::span<const int> voices() const;
+
+private:
+    std::array<int, kSize> m_voices{};
+    /* The trigger count when each voice was last taken. */
+    std::array<unsigned, kSize> m_taken_at{};
+    int m_count = 0;
+    unsigned m_triggers = 0;
 };
 
 }  // namespace a11y

@@ -140,6 +140,22 @@ std::vector<int> channel_onsets(const std::vector<float>& out, int channel) {
     return found;
 }
 
+/* The frames from the first sounding one to the last, inclusive, of one
+ * channel; -1 when silent. */
+std::pair<int, int> sounding_span(const std::vector<float>& out, int channel = 0) {
+    int first = -1;
+    int last = -1;
+    for (size_t f = 0; f < out.size() / 2; f++) {
+        if (std::fabs(out[2 * f + static_cast<size_t>(channel)]) > 1e-7f) {
+            if (first == -1) {
+                first = static_cast<int>(f);
+            }
+            last = static_cast<int>(f);
+        }
+    }
+    return {first, last};
+}
+
 bool near(double value, double expected, double tolerance) {
     return std::fabs(value - expected) <= tolerance;
 }
@@ -391,19 +407,67 @@ void five_voices_stay_under_full_scale() {
     }
 }
 
-void a_pulse_that_does_not_fit_is_refused() {
+/* A pulse longer than its interval: the next pulse cuts it with a fade. */
+void a_long_pulse_is_cut_with_a_fade() {
+    const float most = kCentredFull / 50.0f;
+    /* 0.3 s of full level with 5 ms edges, after the usual lead-in. */
+    Sound long_sound = constant(1.0f, kCueRate * 3 / 10);
+    a11y::shape_edges(long_sound, 0.005f);
+    a11y::lead_in(long_sound, 0.012f);
+    const int lead = static_cast<int>(0.012f * kCueRate);
+    const int length = static_cast<int>(long_sound.samples.size());
+    /* Longer than its fastest interval, and taken. */
+    {
+        CueEngine engine;
+        s_lines.clear();
+        assert(engine.add_voice(pulsed("long", long_sound, 0.1f)) == 0);
+        assert(s_lines.empty());
+        /* Pitched down, it plays longer, and is taken too. */
+        VoiceSpec low = pulsed("low", long_sound, 0.1f);
+        low.lowest_pitch = 0.5f;
+        assert(engine.add_voice(low) == 1);
+    }
+    /* At a fast pace each pulse is cut at full level, fades out within a
+     * ramp, and the next starts from the top: its lead-in is heard as
+     * silence. No click anywhere. */
+    {
+        CueEngine engine;
+        int voice = engine.add_voice(pulsed("long", long_sound, 0.1f));
+        engine.start(voice, at(0.0f, 0.1f));
+        std::vector<float> out = render(engine, 4 * 4800);
+        assert(largest_step(out, 0) < most);
+        for (int pulse : {4800, 9600, 14400}) {
+            assert(near(out[2 * static_cast<size_t>(pulse - 1)], kCentredFull, 1e-4));
+            for (int f = pulse + 250; f < pulse + lead; f++) {
+                assert(out[2 * static_cast<size_t>(f)] == 0.0f);
+            }
+            assert(near(out[2 * static_cast<size_t>(pulse + lead + 1000)], kCentredFull, 1e-4));
+        }
+    }
+    /* At a slow pace it plays whole, then silence until the next pulse. */
+    {
+        CueEngine engine;
+        int voice = engine.add_voice(pulsed("long", long_sound, 0.1f));
+        engine.start(voice, at(0.0f, 0.5f));
+        std::vector<float> out = render(engine, 24000 + 4800);
+        auto [first, last] =
+            sounding_span(std::vector<float>(out.begin(), out.begin() + 2 * 24000));
+        assert(first == lead + 1 && last == length - 2);
+        assert(near(out[2 * 14000], kCentredFull, 1e-4));
+        check_onsets(onsets(out), {lead + 1, 24000 + lead + 1});
+    }
+}
+
+/* A sound that ends exactly as the next pulse is due is not cut: every frame
+ * is the sound's level, with nothing of a fading pulse added. */
+void a_pulse_that_fits_sounds_as_before() {
     CueEngine engine;
-    s_lines.clear();
-    assert(engine.add_voice(pulsed("long", constant(0.5f, 5760), 0.08f)) == -1);
-    assert(logged("[a11y] cue long refused: its sound lasts 0.120 s at pitch 1.00, longer than "
-                  "its fastest interval of 0.080 s"));
-    /* Pitched down, it plays longer. */
-    VoiceSpec low = pulsed("low", constant(0.5f, 2400), 0.08f);
-    low.lowest_pitch = 0.5f;
-    assert(engine.add_voice(low) == -1);
-    assert(engine.add_voice(pulsed("fits", constant(0.5f, 2400), 0.08f)) == 0);
-    /* A looped sound has no interval to fit. */
-    assert(engine.add_voice(looped("hum", constant(0.5f, 96000))) == 1);
+    int voice = engine.add_voice(pulsed("tick", constant(0.5f, 480), 0.01f));
+    engine.start(voice, at(0.0f, 0.01f));
+    std::vector<float> out = render(engine, 4800);
+    for (int f = 240; f < 4800; f++) {
+        assert(near(out[2 * static_cast<size_t>(f)], 0.5f * kCentredFull, 1e-6));
+    }
 }
 
 void starts_and_stops_are_logged_once() {
@@ -424,22 +488,6 @@ VoiceSpec once(const char* name) {
     spec.name = name;
     spec.mode = VoiceMode::once;
     return spec;
-}
-
-/* The frames from the first sounding one to the last, inclusive; -1 when
- * silent. */
-std::pair<int, int> sounding_span(const std::vector<float>& out) {
-    int first = -1;
-    int last = -1;
-    for (size_t f = 0; f < out.size() / 2; f++) {
-        if (std::fabs(out[2 * f]) > 1e-7f) {
-            if (first == -1) {
-                first = static_cast<int>(f);
-            }
-            last = static_cast<int>(f);
-        }
-    }
-    return {first, last};
 }
 
 /* A voice's line: a buffer handed over at run time, played from its start
@@ -546,6 +594,206 @@ void a_once_voice_takes_master_and_its_own_volume() {
     assert(peak(render(engine, 4800)) < 1e-5f);
 }
 
+VoiceSpec one_shot(const char* name, Sound sound) {
+    VoiceSpec spec;
+    spec.name = name;
+    spec.sound = std::move(sound);
+    spec.mode = VoiceMode::one_shot;
+    return spec;
+}
+
+VoiceTargets placed(float pan, float pitch, float gain = 1.0f) {
+    VoiceTargets targets;
+    targets.pan = pan;
+    targets.pitch = pitch;
+    targets.gain = gain;
+    return targets;
+}
+
+/* A one-shot plays its sound once from the start at each trigger, at its
+ * pan and pitch, ramped in and out, then falls silent by itself. */
+void a_one_shot_plays_once_at_its_pan_and_pitch() {
+    const float most = kCentredFull / 50.0f;
+    CueEngine engine;
+    int voice = engine.add_voice(one_shot("appear", constant(1.0f, 4800)));
+    assert(voice == 0);
+    assert(!engine.playing(voice));
+    s_lines.clear();
+    engine.trigger(voice, placed(0.0f, 1.0f));
+    assert(engine.playing(voice));
+    assert(logged("[a11y] cue appear play pan 0.00 pitch 1.00 gain 1.00"));
+    std::vector<float> out = render(engine, kCueRate / 5);
+    assert(sounding_span(out) == std::make_pair(0, 4799));
+    assert(largest_step(out, 0) < most);
+    assert(near(out[2 * 2400], kCentredFull, 1e-4));
+    assert(!engine.playing(voice));
+    assert(peak(render(engine, kCueRate / 5)) == 0.0f);
+    /* Full left and an octave up: half as long, nothing on the right. */
+    engine.trigger(voice, placed(-1.0f, 2.0f));
+    out = render(engine, kCueRate / 5);
+    assert(sounding_span(out) == std::make_pair(0, 2399));
+    assert(largest_step(out, 1) < 1e-6f);
+    assert(near(out[2 * 1200], 2.0f * kCentredFull * std::sqrt(0.5f), 1e-4));
+    assert(!engine.playing(voice));
+    /* Nothing but a trigger plays it, and only a one-shot can be
+     * triggered. */
+    engine.start(voice, placed(0.0f, 1.0f));
+    assert(!engine.playing(voice));
+    assert(peak(render(engine, 4800)) == 0.0f);
+    int tick = engine.add_voice(pulsed("tick", constant(0.5f, 480), 0.02f));
+    s_lines.clear();
+    engine.trigger(tick, placed(0.0f, 1.0f));
+    assert(!engine.playing(tick));
+    assert(logged("[a11y] cue voice 1 cannot be triggered"));
+    /* A one-shot needs a sound. */
+    assert(engine.add_voice(one_shot("empty", Sound{})) == -1);
+    assert(logged("[a11y] cue empty refused: no sound"));
+}
+
+/* A one-shot is a cue's voice: its cue's switch, volume and boost and the
+ * mix's reach it; a preview's takes the volumes alone. */
+void a_one_shot_takes_its_cue_level() {
+    CueEngine engine;
+    VoiceSpec spec = one_shot("appear", constant(1.0f, 10 * kCueRate));
+    spec.cue = 2;
+    int voice = engine.add_voice(spec);
+    engine.set_master_volume(0.5f);
+    engine.set_mix_level(CueLevel{true, 0.8f, 1.0f});
+    engine.set_cue_level(2, CueLevel{true, 0.5f, 2.0f});
+    engine.set_cue_level(0, CueLevel{true, 0.1f, 1.0f}); /* another cue's */
+    engine.trigger(voice, placed(0.0f, 1.0f, 0.6f));
+    std::vector<float> out = render(engine, 4800);
+    assert(near(out[out.size() - 2], 0.5 * 0.8 * 0.5 * 2.0 * 0.6 * kCentredFull, 1e-4));
+    /* Its gain stops at 1: the boost is its cue level's. */
+    engine.set_targets(voice, placed(0.0f, 1.0f, 2.0f));
+    out = render(engine, 4800);
+    assert(near(out[out.size() - 2], 0.5 * 0.8 * 0.5 * 2.0 * kCentredFull, 1e-4));
+    /* Its cue's switch off, then the mix's: silent, still playing. */
+    engine.set_cue_level(2, CueLevel{false, 0.5f, 2.0f});
+    render(engine, 4800);
+    assert(peak(render(engine, 4800)) < 1e-5f);
+    assert(engine.playing(voice));
+    engine.set_cue_level(2, CueLevel{});
+    engine.set_mix_level(CueLevel{false, 1.0f, 1.0f});
+    render(engine, 4800);
+    assert(peak(render(engine, 4800)) < 1e-5f);
+    engine.set_mix_level(CueLevel{});
+    out = render(engine, 4800);
+    assert(near(out[out.size() - 2], 0.5 * kCentredFull, 1e-4));
+
+    /* A preview's one-shot sounds with both switches off, at the volumes. */
+    VoiceSpec preview_spec = one_shot("appear preview", constant(1.0f, kCueRate));
+    preview_spec.ignores_switches = true;
+    CueEngine other;
+    int preview = other.add_voice(preview_spec);
+    other.set_mix_level(CueLevel{false, 0.8f, 1.0f});
+    other.set_cue_level(0, CueLevel{false, 0.5f, 2.0f});
+    other.trigger(preview, placed(0.0f, 1.0f));
+    out = render(other, 4800);
+    assert(near(out[out.size() - 2], 0.8 * 0.5 * 2.0 * kCentredFull, 1e-4));
+}
+
+/* A trigger while it plays restarts it from the top, the old play fading
+ * out as the new one ramps in: no click. A stop ramps it out. */
+void a_one_shot_retriggered_restarts_without_a_click() {
+    const float most = kCentredFull / 50.0f;
+    CueEngine engine;
+    int voice = engine.add_voice(one_shot("appear", constant(1.0f, 9600)));
+    engine.trigger(voice, placed(0.0f, 1.0f));
+    std::vector<float> out = render(engine, 4800);
+    float before = out[out.size() - 2];
+    assert(near(before, kCentredFull, 1e-4));
+    engine.trigger(voice, placed(0.0f, 1.0f, 0.5f));
+    assert(engine.playing(voice));
+    out = render(engine, 4 * 4800);
+    assert(largest_step(out, 0, before) < most);
+    /* The whole sound again from the retrigger, at the new gain. */
+    assert(sounding_span(out) == std::make_pair(0, 9599));
+    assert(near(out[2 * 4800], 0.5f * kCentredFull, 1e-4));
+    /* From full left to full right: the old play fades out on the left,
+     * the new ramps in on the right. */
+    engine.trigger(voice, placed(-1.0f, 1.0f));
+    out = render(engine, 4800);
+    float left = out[out.size() - 2];
+    float right = out[out.size() - 1];
+    engine.trigger(voice, placed(1.0f, 1.0f));
+    out = render(engine, 4800);
+    assert(largest_step(out, 0, left) < most);
+    assert(largest_step(out, 1, right) < most);
+    assert(sounding_span(out, 0).second < 300);
+    assert(near(out[out.size() - 1], kCentredFull * std::sqrt(2.0f), 1e-4));
+    /* Stopped, it ramps out and is done; a trigger plays it again. */
+    engine.stop(voice);
+    before = out[out.size() - 1];
+    out = render(engine, 4800);
+    assert(largest_step(out, 1, before) < most);
+    assert(peak(std::vector<float>(out.begin() + 2 * 480, out.end())) == 0.0f);
+    assert(!engine.playing(voice));
+    engine.trigger(voice, placed(0.0f, 1.0f));
+    out = render(engine, 4800);
+    assert(near(out[out.size() - 2], kCentredFull, 1e-4));
+    /* A trigger stopped before the audio thread takes it never plays. */
+    engine.stop(voice);
+    render(engine, 4800);
+    engine.trigger(voice, placed(0.0f, 1.0f));
+    engine.stop(voice);
+    assert(peak(render(engine, 4800)) == 0.0f);
+    assert(!engine.playing(voice));
+}
+
+/* A pool's triggers each take a voice of their own while one is free, so a
+ * burst overlaps; a full pool takes the voice triggered longest ago. */
+void a_pool_overlaps_and_takes_the_oldest() {
+    constexpr int kSize = a11y::OneShotPool::kSize;
+    CueEngine engine;
+    a11y::OneShotPool pool;
+    assert(!pool.playing(engine));
+    assert(pool.trigger(engine, placed(0.0f, 1.0f)) == -1); /* none added */
+    s_lines.clear();
+    assert(pool.add(engine, one_shot("appear", constant(0.25f, 4800))));
+    assert(static_cast<int>(pool.voices().size()) == kSize);
+    /* A burst on one tick: every voice, each logged by its name. */
+    std::vector<int> taken;
+    for (int i = 0; i < kSize; i++) {
+        taken.push_back(pool.trigger(engine, placed(0.0f, 1.0f)));
+    }
+    std::vector<int> sorted = taken;
+    std::sort(sorted.begin(), sorted.end());
+    assert(sorted.front() != -1);
+    assert(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
+    assert(logged("[a11y] cue appear 1 play pan 0.00 pitch 1.00 gain 1.00"));
+    assert(logged(
+        "[a11y] cue appear " + std::to_string(kSize) + " play pan 0.00 pitch 1.00 gain 1.00"));
+    assert(pool.playing(engine));
+    /* All sound together. */
+    std::vector<float> out = render(engine, 2400);
+    assert(near(out[out.size() - 2], kSize * 0.25 * kCentredFull, 1e-4));
+    /* Full: the next two take the oldest, in order. */
+    assert(pool.trigger(engine, placed(0.0f, 1.0f)) == taken[0]);
+    assert(pool.trigger(engine, placed(0.0f, 1.0f)) == taken[1]);
+    out = render(engine, 4800);
+    /* Those two were restarted, the rest played out. */
+    assert(near(out[2 * 3000], 2 * 0.25 * kCentredFull, 1e-4));
+    assert(engine.playing(taken[0]) && engine.playing(taken[1]));
+    assert(!engine.playing(taken[2]));
+    /* A free voice is taken before the oldest playing one. */
+    int next = pool.trigger(engine, placed(0.0f, 1.0f));
+    assert(next != taken[0] && next != taken[1]);
+    /* Stopped, all ramp out. */
+    pool.stop(engine);
+    render(engine, 4800);
+    assert(!pool.playing(engine));
+    /* A pool that does not fit the engine keeps the voices it got. */
+    CueEngine small;
+    for (int i = 0; i < CueEngine::kMaxVoices - 2; i++) {
+        small.add_voice(one_shot("filler", constant(0.25f, 480)));
+    }
+    a11y::OneShotPool partial;
+    assert(!partial.add(small, one_shot("appear", constant(0.25f, 480))));
+    assert(partial.voices().size() == 2);
+    assert(partial.trigger(small, placed(0.0f, 1.0f)) != -1);
+}
+
 void the_trace_has_a_line_per_voice_each_tick(const std::string& path) {
     {
         CueEngineOptions options;
@@ -607,11 +855,16 @@ int main(int argc, char** argv) {
     the_volume_chain_multiplies();
     a_voice_past_the_switches_keeps_every_volume();
     five_voices_stay_under_full_scale();
-    a_pulse_that_does_not_fit_is_refused();
+    a_long_pulse_is_cut_with_a_fade();
+    a_pulse_that_fits_sounds_as_before();
     starts_and_stops_are_logged_once();
     a_once_voice_plays_its_buffer_once();
     a_once_voice_cuts_with_a_ramp();
     a_once_voice_takes_master_and_its_own_volume();
+    a_one_shot_plays_once_at_its_pan_and_pitch();
+    a_one_shot_takes_its_cue_level();
+    a_one_shot_retriggered_restarts_without_a_click();
+    a_pool_overlaps_and_takes_the_oldest();
     the_trace_has_a_line_per_voice_each_tick(dump + ".trace");
     write_pulse_train(dump);
     std::cout << "cue_engine: all tests passed\n";
