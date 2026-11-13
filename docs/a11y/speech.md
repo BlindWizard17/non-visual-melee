@@ -78,7 +78,7 @@ The Prism backend the voices speak with is chosen per platform: OneCore on Windo
 
 ### What speaks through them
 
-The match announcements (`match_announcer.cpp`, read from the tick hook; spec `.scratch/match-announcements/spec.md`): your damage and stocks in your voice, everyone else's in the opponents' voice, each line's subject the player's slot, so a new line about a player replaces an older one about the same player. The time left, also a match announcement, goes to the screen reader, queued. What the announcements read, and when the HUD shows it: `docs/a11y/gameplay-state.md`, "The HUD".
+The match announcements (`match_announcer.cpp`, read from the tick hook; spec `.scratch/match-announcements/spec.md`): your damage and stocks in your voice, everyone else's in the opponents' voice, each line's subject the player's slot, so a new line about a player replaces an older one about the same player. The items each player takes are said the same way (`item_takes.cpp` finds the takes; spec `.scratch/items/spec.md`, "Pickup announcements"), but under the player's pickup subject (`pickup_subject`), a range of its own, so a pickup replaces only an older pickup about the same player and never a damage or stock line, nor they it. The time left, also a match announcement, goes to the screen reader, queued. What the announcements read, and when the HUD shows it: `docs/a11y/gameplay-state.md`, "The HUD".
 
 ### Rendering and playing
 
@@ -89,7 +89,7 @@ The match announcements (`match_announcer.cpp`, read from the tick hook; spec `.
 
 ### Queueing
 
-Every line carries its subject: a player's slot in a match, or a preview (`kPreviewSubject`). Within one voice:
+Every line carries its subject: a player's slot in a match, a player's pickup subject, or a preview (`kPreviewSubject`). Within one voice:
 
 - a new line about the subject whose line is playing cuts that line off with the engine's stop ramp as soon as the new one is rendered, ahead of the lines waiting;
 - a new line about a subject whose line is waiting takes its place in the queue;

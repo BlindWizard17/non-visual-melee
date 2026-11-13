@@ -208,7 +208,8 @@ inline const std::vector<std::string> kAnnouncementRows{"a11y-match_announcement
     "a11y-match_announcements-your_damage", "a11y-match_announcements-opponents_damage",
     "a11y-match_announcements-damage_interval", "a11y-match_announcements-your_stocks",
     "a11y-match_announcements-opponents_stocks", "a11y-match_announcements-teammates",
-    "a11y-match_announcements-time_left", "a11y-match_announcements-item_appearances"};
+    "a11y-match_announcements-time_left", "a11y-match_announcements-item_appearances",
+    "a11y-match_announcements-item_pickups"};
 inline const std::vector<std::string> kVoiceRows{"a11y-test-voice", "a11y-test-preview"};
 
 /* Whether the Accessibility category's page shows the element, as the

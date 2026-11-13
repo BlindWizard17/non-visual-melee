@@ -36,9 +36,9 @@ DamageMode damage_mode(const Choice& choice) {
 
 MatchAnnouncementSettings::MatchAnnouncementSettings(ValueModel& model)
     : m_on(group(model).add_switch(SwitchSpec{"on", "Match announcements",
-          "Says what happens in a match: your damage and stocks in your voice, everyone else's in "
-          "the opponents' voice, and the time left and the items that appear on the screen "
-          "reader.",
+          "Says what happens in a match: your damage, stocks and pickups in your voice, everyone "
+          "else's in the opponents' voice, and the time left and the items that appear on the "
+          "screen reader.",
           true, true})),
       m_menu(group(model).add_menu(MenuSpec{"settings", "Match announcement settings",
           "The voices, and what is announced: damage, stocks, teammates, the time left and "
@@ -66,8 +66,8 @@ MatchAnnouncementSettings::MatchAnnouncementSettings(ValueModel& model)
                   true, true})),
       m_teammates(group(model, &m_menu)
               .add_switch(SwitchSpec{"teammates", "Teammates",
-                  "Says your teammates' damage and stocks in a team match, as the opponents' "
-                  "rows set. Off, teammates are left out.",
+                  "Says your teammates' damage, stocks and pickups in a team match, as the "
+                  "opponents' rows set. Off, teammates are left out.",
                   true, true})),
       m_time_left(group(model, &m_menu)
               .add_switch(SwitchSpec{"time_left", "Time left",
@@ -78,6 +78,11 @@ MatchAnnouncementSettings::MatchAnnouncementSettings(ValueModel& model)
               .add_switch(SwitchSpec{"item_appearances", "Item appearances",
                   "Says each item as it appears in a match, by name, on the screen reader.", true,
                   true})),
+      m_item_pickups(group(model, &m_menu)
+              .add_switch(SwitchSpec{"item_pickups", "Item pickups",
+                  "Says each item a player takes, by name: yours in your voice, everyone "
+                  "else's in the opponents' voice.",
+                  true, true})),
       m_settle(group(model).add_number(NumberSpec{"damage_settle", "Damage settle time",
           "How long a player's damage must hold still before it is said, so a combo says only "
           "where it ends.",
@@ -94,6 +99,7 @@ MatchAnnouncementValues MatchAnnouncementSettings::values() const {
     values.teammates = m_teammates.on();
     values.time_left = m_time_left.on();
     values.item_appearances = m_item_appearances.on();
+    values.item_pickups = m_item_pickups.on();
     values.settle =
         std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(m_settle.value()));
     return values;

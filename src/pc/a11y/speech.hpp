@@ -23,11 +23,19 @@ constexpr int kVoiceCount = 2;
 /* "yours" or "opponents", in log lines. */
 const char* voice_name(Voice voice);
 
-/* Whom a voice's line is about: a player's slot in a match (0 to 5), or a
- * preview. Within one voice a new line about a subject replaces the one
- * about it already there (voices.hpp). */
+/* Whom and what a voice's line is about: a player's slot in a match (0 to
+ * 5) for their damage and stocks, the player's pickup subject for the items
+ * they take, or a preview. Within one voice a new line about a subject
+ * replaces the one about it already there (voices.hpp), so a pickup replaces
+ * only an older pickup about the same player, and a damage or stock line
+ * never replaces a pickup, nor it them. */
 using Subject = int;
 constexpr Subject kPreviewSubject = -1;
+/* The pickups' own range, one subject a slot. */
+constexpr Subject kPickupSubjects = 100;
+constexpr Subject pickup_subject(int slot) {
+    return kPickupSubjects + slot;
+}
 
 /* The voices as speech sees them: voices.cpp, attached once the cue engine
  * they play through is open. Game thread only. */

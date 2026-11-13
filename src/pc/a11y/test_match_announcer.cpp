@@ -70,6 +70,13 @@ public:
 
 using Lines = std::vector<std::string>;
 
+/* Nothing in the player's hands. */
+void empty_hands(A11yMatchHudPlayer& player) {
+    for (A11yMatchHeld& hand : player.hands) {
+        hand = A11yMatchHeld{-1, A11Y_NO_ITEM};
+    }
+}
+
 /* A human in slot 0 on port 1 (you) against a CPU in slot 1, both with a
  * panel, before GO. */
 A11yMatchHud before_go() {
@@ -85,6 +92,7 @@ A11yMatchHud before_go() {
         player.panel = true;
         player.port = slot;
         player.stocks = 4;
+        empty_hands(player);
     }
     hud.players[0].human = true;
     return hud;
@@ -99,7 +107,29 @@ void add(A11yMatchHud& hud, int slot, bool human, int port, const char* tag = ""
     player.human = human;
     player.port = port;
     player.stocks = 4;
+    empty_hands(player);
     std::strncpy(player.tag, tag, sizeof(player.tag) - 1);
+}
+
+/* The item of `serial` comes into the player's hand, `first` the player's
+ * first hold of it, which raises the game's tally of the kind. */
+void take(A11yMatchHud& hud, int slot, int hand, int serial, A11yItem kind, bool first = true) {
+    A11yMatchHudPlayer& player = hud.players[slot];
+    player.hands[hand] = A11yMatchHeld{serial, kind};
+    if (first) {
+        player.taken[kind]++;
+    }
+}
+
+/* The player's hand empties: a throw, a drop, an item used up. */
+void let_go(A11yMatchHud& hud, int slot, int hand) {
+    hud.players[slot].hands[hand] = A11yMatchHeld{-1, A11Y_NO_ITEM};
+}
+
+/* A pickup line as the fake voices record it: its subject is the player's
+ * pickup subject, not their slot. */
+std::string pickup(const char* voice, int slot, const std::string& text) {
+    return std::string(voice) + " " + std::to_string(a11y::pickup_subject(slot)) + " " + text;
 }
 
 struct Fixture {
@@ -911,6 +941,225 @@ void time_left_the_switches() {
     assert(g.count(90 * 60).empty());
 }
 
+/* A pickup by you in your voice, a CPU's in the opponents' voice, each the
+ * item's name alone with one opponent, on the tick the item comes into the
+ * hand; holding it after says nothing more. */
+void pickups_yours_and_a_cpus() {
+    Fixture f;
+    f.go();
+    take(f.hud, 0, 0, 0, A11Y_It_Kind_L_Gun);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Ray Gun")}));
+    assert(f.ticks(30).empty());
+    take(f.hud, 1, 0, 1, A11Y_It_Kind_Foods);
+    assert((f.ticks() == Lines{pickup("opponents", 1, "Food")}));
+    /* Eaten: the hand empties, nothing said. */
+    let_go(f.hud, 1, 0);
+    assert(f.ticks().empty());
+    assert(logged("[a11y] voice yours: \"Ray Gun\""));
+}
+
+/* With two or more players besides you each pickup in the opponents' voice
+ * starts with the player's label, the damage lines' own, fixed at GO; yours
+ * never has one; with no "you" everyone's is labelled. */
+void pickup_labels() {
+    Fixture three;
+    add(three.hud, 2, true, 2);
+    add(three.hud, 3, true, 3, "BOB");
+    three.go();
+    take(three.hud, 0, 0, 0, A11Y_It_Kind_Sword);
+    take(three.hud, 1, 0, 1, A11Y_It_Kind_Bat);
+    take(three.hud, 2, 0, 2, A11Y_It_Kind_L_Gun);
+    take(three.hud, 3, 0, 3, A11Y_It_Kind_Foods);
+    assert((three.ticks() ==
+            Lines{pickup("yours", 0, "Beam Sword"), pickup("opponents", 1, "CPU 2, Home-Run Bat"),
+                pickup("opponents", 2, "P3, Ray Gun"), pickup("opponents", 3, "BOB, Food")}));
+
+    Fixture none;
+    none.hud.you = -1;
+    none.hud.players[0].human = false;
+    none.go();
+    take(none.hud, 0, 0, 0, A11Y_It_Kind_Foods);
+    assert((none.ticks() == Lines{pickup("opponents", 0, "CPU 1, Food")}));
+}
+
+/* A teammate's pickups only with the Teammates switch on, labelled
+ * "teammate"; an opponent's go on. */
+void pickups_a_teammate() {
+    Fixture f;
+    f.hud.teams = true;
+    add(f.hud, 2, true, 2);
+    f.hud.players[0].team = 1;
+    f.hud.players[1].team = 1;
+    f.hud.players[2].team = 0;
+    f.go();
+    take(f.hud, 1, 0, 0, A11Y_It_Kind_Foods);
+    assert((f.ticks() == Lines{pickup("opponents", 1, "teammate CPU 2, Food")}));
+    f.values.teammates = false;
+    take(f.hud, 1, 0, 1, A11Y_It_Kind_Tomato);
+    take(f.hud, 2, 0, 2, A11Y_It_Kind_Heart);
+    assert((f.ticks() == Lines{pickup("opponents", 2, "P3, Heart Container")}));
+    /* On again: only later pickups. */
+    f.values.teammates = true;
+    assert(f.ticks().empty());
+}
+
+/* A catch: an item thrown by one player and caught by another is the
+ * catcher's take, the tally of their first hold rising with it; caught back
+ * by the thrower, no first hold, it is a take all the same. */
+void pickups_a_catch() {
+    Fixture f;
+    f.go();
+    take(f.hud, 0, 0, 4, A11Y_It_Kind_BombHei);
+    f.ticks();
+    let_go(f.hud, 0, 0);
+    assert(f.ticks(20).empty());
+    take(f.hud, 1, 0, 4, A11Y_It_Kind_BombHei);
+    assert((f.ticks() == Lines{pickup("opponents", 1, "Bob-omb")}));
+    let_go(f.hud, 1, 0);
+    assert(f.ticks(20).empty());
+    take(f.hud, 0, 0, 4, A11Y_It_Kind_BombHei, false);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Bob-omb")}));
+}
+
+/* A touch item never enters a hand: the tally's rise alone is the take. */
+void pickups_a_touch_item() {
+    Fixture f;
+    f.go();
+    f.hud.players[0].taken[A11Y_It_Kind_Star]++;
+    f.hud.players[1].taken[A11Y_It_Kind_Kinoko]++;
+    assert((f.ticks() ==
+            Lines{pickup("yours", 0, "Starman"), pickup("opponents", 1, "Super Mushroom")}));
+    assert(f.ticks().empty());
+}
+
+/* The same item picked up again after a throw, or after resting on the
+ * ground: the game's tally counts only the first hold, the hands each. */
+void pickups_a_re_pickup() {
+    Fixture f;
+    f.go();
+    take(f.hud, 0, 0, 2, A11Y_It_Kind_L_Gun);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Ray Gun")}));
+    let_go(f.hud, 0, 0);
+    assert(f.ticks(60).empty());
+    take(f.hud, 0, 0, 2, A11Y_It_Kind_L_Gun, false);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Ray Gun")}));
+}
+
+/* A healing item used up on the tick it is taken (an air catch) never shows
+ * in a hand: the tally says it. One taken into the second hand while
+ * holding another item is said once, hand and tally rising together. */
+void pickups_a_healing_item_used_up_at_once() {
+    Fixture f;
+    f.go();
+    f.hud.players[0].taken[A11Y_It_Kind_Heart]++;
+    assert((f.ticks() == Lines{pickup("yours", 0, "Heart Container")}));
+    take(f.hud, 0, 0, 5, A11Y_It_Kind_L_Gun);
+    f.ticks();
+    take(f.hud, 0, 1, 6, A11Y_It_Kind_Foods);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Food")}));
+    let_go(f.hud, 0, 1);
+    assert(f.ticks().empty());
+}
+
+/* No take where an item only moves: the Bunny Hood from the hand to the
+ * head, an item kept through Zelda's change to Sheik. Nor what is held at
+ * GO, nor what a slot holds as it comes back into the match, its hands
+ * its baseline. */
+void pickups_moves_are_no_takes() {
+    Fixture f;
+    take(f.hud, 1, 0, 0, A11Y_It_Kind_L_Gun);
+    f.go();
+    assert(f.ticks().empty());
+    take(f.hud, 0, 0, 1, A11Y_It_Kind_RabbitC);
+    assert((f.ticks() == Lines{pickup("yours", 0, "Bunny Hood")}));
+    let_go(f.hud, 0, 0);
+    f.hud.players[0].hands[2] = A11yMatchHeld{1, A11Y_It_Kind_RabbitC};
+    assert(f.ticks().empty());
+    /* A slot away from the match reads zeroes, serial 0 in every hand. */
+    f.hud.players[1] = A11yMatchHudPlayer{};
+    assert(f.ticks().empty());
+    add(f.hud, 1, false, 1);
+    take(f.hud, 1, 0, 0, A11Y_It_Kind_L_Gun, false);
+    assert(f.ticks().empty());
+}
+
+/* A tally lowered by an online rollback counts nothing; the next rise counts
+ * from there. */
+void pickups_a_rollback() {
+    Fixture f;
+    f.go();
+    f.hud.players[1].taken[A11Y_It_Kind_Star] = 1;
+    assert((f.ticks() == Lines{pickup("opponents", 1, "Starman")}));
+    f.hud.players[1].taken[A11Y_It_Kind_Star] = 0;
+    assert(f.ticks().empty());
+    f.hud.players[1].taken[A11Y_It_Kind_Star] = 1;
+    assert((f.ticks() == Lines{pickup("opponents", 1, "Starman")}));
+}
+
+/* From GO to GAME! or TIME! only: nothing before GO, on GAME!'s tick or
+ * after. */
+void pickups_from_go_to_game() {
+    Fixture f;
+    take(f.hud, 1, 0, 0, A11Y_It_Kind_L_Gun);
+    assert(f.ticks().empty());
+    f.go();
+    take(f.hud, 0, 0, 1, A11Y_It_Kind_Foods);
+    f.hud.decided = true;
+    assert(f.ticks().empty());
+    f.hud.players[1].taken[A11Y_It_Kind_Star]++;
+    assert(f.ticks(10).empty());
+}
+
+/* A pickup line's subject is the player's pickup subject: it replaces only
+ * an older pickup about the same player still waiting, never a damage or a
+ * stock line about them, nor they it. */
+void pickups_have_their_own_subject() {
+    Fixture f;
+    f.go();
+    f.voices.playing = true;
+    f.hud.players[1].damage = 30;
+    f.settle();
+    take(f.hud, 1, 0, 0, A11Y_It_Kind_L_Gun);
+    f.ticks();
+    assert((f.voices.waiting == Lines{"opponents 1 30", pickup("opponents", 1, "Ray Gun")}));
+    f.hud.players[1].damage = 45;
+    f.settle();
+    assert((f.voices.waiting == Lines{"opponents 1 45", pickup("opponents", 1, "Ray Gun")}));
+    f.hud.players[1].stocks = 3;
+    f.ticks();
+    assert((f.voices.waiting == Lines{"opponents 1 3 stocks", pickup("opponents", 1, "Ray Gun")}));
+    let_go(f.hud, 1, 0);
+    f.ticks();
+    take(f.hud, 1, 0, 1, A11Y_It_Kind_Foods);
+    f.ticks();
+    assert((f.voices.waiting == Lines{"opponents 1 3 stocks", pickup("opponents", 1, "Food")}));
+}
+
+/* The Item pickups switch, and the Match announcements switch over it:
+ * off, a pickup is not said, and on again only later ones are. A player
+ * without a HUD panel is never announced. */
+void pickups_the_switches() {
+    Fixture f;
+    f.go();
+    f.values.item_pickups = false;
+    take(f.hud, 0, 0, 0, A11Y_It_Kind_L_Gun);
+    assert(f.ticks().empty());
+    f.values.item_pickups = true;
+    assert(f.ticks().empty());
+    f.values.on = false;
+    take(f.hud, 1, 0, 1, A11Y_It_Kind_Foods);
+    assert(f.ticks().empty());
+    f.values.on = true;
+    assert(f.ticks().empty());
+
+    Fixture g;
+    add(g.hud, 2, false, 2);
+    g.hud.players[2].panel = false;
+    g.go();
+    take(g.hud, 2, 0, 0, A11Y_It_Kind_Foods);
+    assert(g.ticks().empty());
+}
+
 /* The rows: the switch shown, on by default, read live; the settle time a
  * tuning value; the damage rows. */
 void the_rows() {
@@ -953,7 +1202,7 @@ void the_rows() {
     assert(interval != nullptr && interval->shown && interval->kind == a11y::ValueKind::number);
     assert(yours->label == "Your damage" && theirs->label == "Opponents' damage");
     assert(interval->label == "Damage interval");
-    assert(model.shown().size() == 11 && model.shown()[3].value == yours &&
+    assert(model.shown().size() == 12 && model.shown()[3].value == yours &&
            model.shown()[4].value == theirs && model.shown()[5].value == interval);
     const a11y::ChoiceOptions modes = a11y::choice_options(*yours);
     assert(modes.size() == 3 && modes[0].shown() == "Off" && modes[1].shown() == "Every change" &&
@@ -1027,19 +1276,31 @@ void the_rows() {
     model.set(*time_left, 0.0f);
     assert(!settings.values().time_left);
 
-    /* Item appearances last, likewise. */
+    /* Item appearances, likewise. */
     const a11y::NamedValue* appearances =
         model.find(a11y::MatchAnnouncementSettings::kItemAppearancesKey);
     assert(appearances != nullptr && appearances->shown &&
            appearances->kind == a11y::ValueKind::toggle);
     assert(appearances->label == "Item appearances" && appearances->default_value == 1.0f);
-    assert(model.shown()[10].value == appearances && model.shown().size() == 11);
+    assert(model.shown()[10].value == appearances);
     assert(text.find("match_announcements.time_left = ") <
                text.find("match_announcements.item_appearances = ") &&
            text.find("match_announcements.item_appearances = ") < text.find("damage_settle = "));
     assert(settings.values().item_appearances);
     model.set(*appearances, 0.0f);
     assert(!settings.values().item_appearances);
+
+    /* Item pickups last, likewise. */
+    const a11y::NamedValue* pickups = model.find(a11y::MatchAnnouncementSettings::kItemPickupsKey);
+    assert(pickups != nullptr && pickups->shown && pickups->kind == a11y::ValueKind::toggle);
+    assert(pickups->label == "Item pickups" && pickups->default_value == 1.0f);
+    assert(model.shown()[11].value == pickups && model.shown().size() == 12);
+    assert(text.find("match_announcements.item_appearances = ") <
+               text.find("match_announcements.item_pickups = ") &&
+           text.find("match_announcements.item_pickups = ") < text.find("damage_settle = "));
+    assert(settings.values().item_pickups);
+    model.set(*pickups, 0.0f);
+    assert(!settings.values().item_pickups && !settings.values().item_appearances);
 }
 
 }  // namespace
@@ -1083,6 +1344,18 @@ int main() {
     time_left_counting_up_and_none();
     time_left_a_pause();
     time_left_the_switches();
+    pickups_yours_and_a_cpus();
+    pickup_labels();
+    pickups_a_teammate();
+    pickups_a_catch();
+    pickups_a_touch_item();
+    pickups_a_re_pickup();
+    pickups_a_healing_item_used_up_at_once();
+    pickups_moves_are_no_takes();
+    pickups_a_rollback();
+    pickups_from_go_to_game();
+    pickups_have_their_own_subject();
+    pickups_the_switches();
     the_rows();
     std::cout << "match_announcer: all tests passed\n";
     return 0;

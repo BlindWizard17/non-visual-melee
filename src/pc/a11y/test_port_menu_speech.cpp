@@ -838,8 +838,8 @@ void accessibility_category_rows(Rml::Context& context) {
         "included.",
         "Cues, On, Left and right to change. Turns every cue on or off.", kCueSettingsRow,
         "Match announcements, On, Left and right to change. Says what happens in a match: your "
-        "damage and stocks in your voice, everyone else's in the opponents' voice, and the time "
-        "left and the items that appear on the screen reader.",
+        "damage, stocks and pickups in your voice, everyone else's in the opponents' voice, and "
+        "the time left and the items that appear on the screen reader.",
         kAnnouncementSettingsRow, kResume};
     for (const std::string& text : said) {
         menu.step(1);
@@ -927,7 +927,7 @@ void accessibility_nested_submenu(Rml::Context& context) {
     assert(rmlui_test::level_shown(menu.document(), rmlui_test::kAnnouncementRows));
     assert(rmlui_test::title_line(menu.document()) == "Match announcement settings");
     menu.step(-1);
-    assert(menu.focused() == menu.element("a11y-match_announcements-item_appearances"));
+    assert(menu.focused() == menu.element("a11y-match_announcements-item_pickups"));
     menu.step(1);
     menu.press();
     assert(menu.focused() == menu.element("a11y-test-voice"));

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "match_announcer.hpp"
 #include "game_text.hpp"
+#include "item_names.hpp"
 #include "pc/pc.h"
 #include "sentences.hpp"
 #include "speech.hpp"
@@ -23,6 +24,7 @@ void MatchAnnouncer::scene_entered() {
     m_stage = Stage::waiting;
     m_labelled = false;
     m_players = {};
+    m_takes = {};
     m_time_left = -1;
 }
 
@@ -97,6 +99,7 @@ void MatchAnnouncer::tick(
             player.said = player.shown;
         }
     }
+    pickups(hud, values);
 }
 
 void MatchAnnouncer::start(const A11yMatchHud& hud, Clock::time_point now) {
@@ -116,6 +119,11 @@ void MatchAnnouncer::start(const A11yMatchHud& hud, Clock::time_point now) {
         const A11yMatchHudPlayer& seen = hud.players[slot];
         if (seen.present && seen.panel) {
             follow(hud, slot, now);
+        }
+        /* What each holds at GO, and the tally so far, is the baseline. */
+        m_takes[slot].forget();
+        if (seen.present) {
+            m_takes[slot].tick(seen);
         }
     }
 }
@@ -188,6 +196,27 @@ void MatchAnnouncer::stocks(
     }
 }
 
+void MatchAnnouncer::pickups(const A11yMatchHud& hud, const MatchAnnouncementValues& values) {
+    for (int slot = 0; slot < A11Y_MATCH_SLOTS; slot++) {
+        const A11yMatchHudPlayer& seen = hud.players[slot];
+        if (!seen.present) {
+            /* Its hands are not filled: followed afresh once it is back. */
+            m_takes[slot].forget();
+            continue;
+        }
+        /* Followed whatever the switches say, so a switch turned on says
+         * only later takes. */
+        const std::vector<A11yItem> kinds = m_takes[slot].tick(seen);
+        const Player& player = m_players[slot];
+        if (kinds.empty() || !player.tracked || !values.on || !values.item_pickups ||
+            player.left_out(values))
+        {
+            continue;
+        }
+        m_speech.announce_voice(player.voice(), pickup_subject(slot), pickup_line(player, kinds));
+    }
+}
+
 void MatchAnnouncer::time_left(const A11yMatchHud& hud, const MatchAnnouncementValues& values) {
     const int before = m_time_left;
     const int left = countdown(hud);
@@ -252,6 +281,19 @@ void MatchAnnouncer::finish(Stage stage, const char* why, const MatchAnnouncemen
 std::string MatchAnnouncer::line(const Player& player, int figure) const {
     std::string figure_text = std::to_string(figure);
     return player.label.empty() ? figure_text : player.label + " " + figure_text;
+}
+
+std::string MatchAnnouncer::pickup_line(const Player& player, const std::vector<A11yItem>& kinds) {
+    std::string line = player.label;
+    for (A11yItem kind : kinds) {
+        std::optional<std::string_view> name = item_name(kind);
+        if (!name.has_value()) {
+            m_log_once("[a11y] match announcement: no name for item kind " +
+                       std::to_string(static_cast<int>(kind)));
+        }
+        add_part(line, name.value_or(kUnknownItem));
+    }
+    return line;
 }
 
 std::string MatchAnnouncer::stock_line(const Player& player, int stocks) const {

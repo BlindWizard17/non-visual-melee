@@ -1047,8 +1047,8 @@ void accessibility_category_rows(Rml::Context& context) {
         "included.",
         "Cues, On, Left and right to change. Turns every cue on or off.", kCueSettingsRow,
         "Match announcements, On, Left and right to change. Says what happens in a match: your "
-        "damage and stocks in your voice, everyone else's in the opponents' voice, and the time "
-        "left and the items that appear on the screen reader.",
+        "damage, stocks and pickups in your voice, everyone else's in the opponents' voice, and "
+        "the time left and the items that appear on the screen reader.",
         kAnnouncementSettingsRow, kAccessibilityRow};
     for (const std::string& text : said) {
         page.step(1);

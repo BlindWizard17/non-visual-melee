@@ -7,7 +7,8 @@
 # Pichu's place left of centre. The item's position cue starts with it and
 # follows it: Pichu runs right and back left until the Food is within reach
 # (the cue quickening, logged "cue item position within reach"), then A
-# eats it, and with no loose item left the cue stops. A second Food made
+# eats it: the pickup is said in your voice, "Food" with the one CPU
+# unlabelled, and with no loose item left the cue stops. A second Food made
 # with the menu open again is said and played the same way, the position
 # cue starting with it and stopped as the menu pauses the match, and
 # Finish leaves.
@@ -86,13 +87,16 @@ sleep 1
 
 # The item's position cue: Pichu runs right, away from the Food, which is
 # then behind on the left, out of reach; then back left, facing it, until
-# it is within reach; then A takes it, and with no loose item left the cue
-# stops.
+# it is within reach; then A takes it, said in your voice, and with no
+# loose item left the cue stops.
 press Right 500
 sleep 1
 press Left 80 until 'cue item position within reach$' 30 0.4
 sleep 0.3
-press A until 'cue item position stop' 5 1
+# The pickup is said on the tick of the take, logged before the cue's stop
+# on the same tick.
+press A until 'voice yours[^:]*: "Food"$' 5 1
+wait 'cue item position stop'
 sleep 1
 
 # Again: the menu opens on Item, and a second Food is said and played.

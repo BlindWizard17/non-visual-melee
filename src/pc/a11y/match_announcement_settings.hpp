@@ -7,8 +7,9 @@
  * submenu that holds the rest: first the row opening Voice settings, whose
  * rows the voices register (VoiceSettings); Your damage and Opponents' damage,
  * each a choice of Off, Every change or Thresholds; the Damage interval both
- * share; Your stocks, Opponents' stocks, Teammates, Time left and Item
- * appearances, switches; and the settle time, a tuning value.
+ * share; Your stocks, Opponents' stocks, Teammates, Time left, Item
+ * appearances and Item pickups, switches; and the settle time, a tuning
+ * value.
  * The announcer reads them as they stand each tick, so a change takes effect
  * at once. Game thread only. */
 #pragma once
@@ -40,6 +41,7 @@ public:
     static constexpr const char* kTeammatesKey = "match_announcements.teammates";
     static constexpr const char* kTimeLeftKey = "match_announcements.time_left";
     static constexpr const char* kItemAppearancesKey = "match_announcements.item_appearances";
+    static constexpr const char* kItemPickupsKey = "match_announcements.item_pickups";
 
 private:
     Switch m_on;
@@ -53,6 +55,7 @@ private:
     Switch m_teammates;
     Switch m_time_left;
     Switch m_item_appearances;
+    Switch m_item_pickups;
     Number m_settle;
 };
 

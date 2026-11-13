@@ -80,6 +80,7 @@ target_sources(melee PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/training_speech.cpp
         ${CMAKE_CURRENT_LIST_DIR}/training_names.cpp
         ${CMAKE_CURRENT_LIST_DIR}/match_announcer.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/item_takes.cpp
         ${CMAKE_CURRENT_LIST_DIR}/match_announcement_settings.cpp
         ${CMAKE_CURRENT_LIST_DIR}/results_speech.cpp
         ${CMAKE_CURRENT_LIST_DIR}/results_names.cpp
@@ -394,11 +395,13 @@ if (TARGET unit_tests)
     add_dependencies(unit_tests training_speech_test)
 
     # The match announcements against hand-written HUD snapshots and a fake
-    # clock, over fake voices, and their rows in a value model; a fake
-    # bridge and its own pc_log_line.
+    # clock, over fake voices, pickups included, and their rows in a value
+    # model; a fake bridge and its own pc_log_line.
     add_executable(match_announcer_test EXCLUDE_FROM_ALL
             ${CMAKE_CURRENT_LIST_DIR}/test_match_announcer.cpp
             ${CMAKE_CURRENT_LIST_DIR}/match_announcer.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_takes.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/item_names.cpp
             ${CMAKE_CURRENT_LIST_DIR}/match_announcement_settings.cpp
             ${CMAKE_CURRENT_LIST_DIR}/value_model.cpp
             ${CMAKE_CURRENT_LIST_DIR}/game_text.cpp

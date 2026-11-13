@@ -30,13 +30,22 @@
  * minute left" at each whole minute of a countdown and "30 seconds left", on
  * the tick the HUD shows that time. The starting minute is not said (the
  * rules header said it), a timer counting up says nothing, and the game's
- * own five-to-one countdown is left alone. Game thread only. */
+ * own five-to-one countdown is left alone.
+ *
+ * Pickups (.scratch/items/spec.md, "Pickup announcements") are said on the
+ * tick of the take (ItemTakes, item_takes.hpp): the item's name after the
+ * player's label, "Ray Gun", "P3, Ray Gun", in the player's voice, each
+ * player's pickups under a subject of their own (pickup_subject), so a
+ * pickup never takes the place of a damage or stock line, nor they its.
+ * Game thread only. */
 #pragma once
 #include "game_access.h"
+#include "item_takes.hpp"
 #include "speech.hpp"
 #include <array>
 #include <chrono>
 #include <string>
+#include <vector>
 
 namespace a11y {
 
@@ -73,6 +82,8 @@ struct MatchAnnouncementValues {
     bool time_left = true;
     /* Off, items appear unsaid (AppearanceAnnouncement, item_appearance.hpp). */
     bool item_appearances = true;
+    /* Off, the items players take are not said. */
+    bool item_pickups = true;
     /* How long a figure must hold still before it is said. */
     Clock::duration settle = std::chrono::milliseconds(600);
 };
@@ -146,6 +157,9 @@ private:
     static int countdown(const A11yMatchHud& hud);
     /* Says the player's stocks when they changed and are to be said. */
     void stocks(const A11yMatchHud& hud, int slot, const MatchAnnouncementValues& values);
+    /* Follows every present slot's takes, and says each followed player's
+     * with Item pickups on, a tick's takes in one line. */
+    void pickups(const A11yMatchHud& hud, const MatchAnnouncementValues& values);
     /* Whether the player's figure shown now is to be said once it settles,
      * by the mode in force. */
     bool owed(const Player& player, const MatchAnnouncementValues& values) const;
@@ -154,6 +168,7 @@ private:
     void finish(Stage stage, const char* why, const MatchAnnouncementValues& values);
     std::string line(const Player& player, int figure) const;
     std::string stock_line(const Player& player, int stocks) const;
+    std::string pickup_line(const Player& player, const std::vector<A11yItem>& kinds);
 
     Speech& m_speech;
     Stage m_stage = Stage::waiting;
@@ -162,6 +177,8 @@ private:
     bool m_labelled = false;
     LogOnce m_log_once;
     std::array<Player, A11Y_MATCH_SLOTS> m_players{};
+    /* Each slot's takes, from GO. */
+    std::array<ItemTakes, A11Y_MATCH_SLOTS> m_takes{};
     /* The countdown's time left last tick (countdown()). */
     int m_time_left = -1;
 };

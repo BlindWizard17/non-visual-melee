@@ -57,7 +57,9 @@ included.
   screen reader, tell you what the game's display shows: your voice speaks
   about you, and the opponents' voice about everyone else, teammates included.
   They say each player's damage once it settles, either on every change or only
-  when it passes a set interval, and each stock lost. Your screen reader says
+  when it passes a set interval, each stock lost, and each item a player
+  takes, such as "Ray Gun", with the player's name first when you face two or
+  more others, such as "CPU 2, Food". Your screen reader says
   the time left in a timed match, at each whole minute and at 30 seconds, and
   names each item as it appears, such as "Bob-omb", or "Food, Food, Maxim
   Tomato" when several come at once. The
