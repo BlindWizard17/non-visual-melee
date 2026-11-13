@@ -27,8 +27,8 @@ TrackedItems ItemPosition::tick(const A11yMatchState& match, const ItemPositionM
     if (match.running) {
         m_started = m_started || match.you.can_move;
     }
-    const bool silent =
-        !match.running || match.paused || !m_started || (mapping.frame.relative && match.you.out);
+    const bool silent = !match.running || match.paused || match.decided || !m_started ||
+                        (mapping.frame.relative && match.you.out);
     if (silent) {
         forget();
         return tracked;

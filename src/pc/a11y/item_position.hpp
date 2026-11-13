@@ -47,16 +47,16 @@ using TrackedItems = std::array<std::optional<TrackedItem>, kTrackedItems>;
 class ItemPosition {
 public:
     /* Once a tick: the nearest loose items' targets, or none for each voice
-     * while the cue is silent: outside a match, paused, before GO, with no
-     * loose item, and relative to you while you are out, since your place
-     * is then where you were knocked out. GO is the first tick with your
-     * input on, held through a respawn; on the stage the cue sounds on while
-     * you are out. Holding an item does not silence it: where the others are
-     * stays useful. An item becoming the nearest only moves the voice.
-     * Relative to you an item keeps its side until it is the crossing
-     * margin past you, as the opponent does; one newly tracked, or tracked
-     * again, takes its side afresh, an item exactly level with you sounding
-     * centred until it moves. */
+     * while the cue is silent: outside a match, paused, before GO, from
+     * GAME! or TIME! on, with no loose item, and relative to you while you
+     * are out, since your place is then where you were knocked out. GO is
+     * the first tick with your input on, held through a respawn; on the
+     * stage the cue sounds on while you are out. Holding an item does not
+     * silence it: where the others are stays useful. An item becoming the
+     * nearest only moves the voice. Relative to you an item keeps its side
+     * until it is the crossing margin past you, as the opponent does; one
+     * newly tracked, or tracked again, takes its side afresh, an item
+     * exactly level with you sounding centred until it moves. */
     TrackedItems tick(const A11yMatchState& match, const ItemPositionMapping& mapping);
     /* The sides forgotten, after a silence: the next tick takes each afresh
      * from its snapshot. */

@@ -15,9 +15,10 @@ namespace a11y {
 constexpr double kPreviewSeconds = 2.0;
 
 /* How long a pulsed voice plays to give this many pulses, the first at its
- * start: until 0.6 of an interval after the last pulse begins, after the
- * pulse's sound, which ends inside the voice's fastest interval, and before
- * the next would begin. */
+ * start: until 0.6 of an interval after the last pulse begins, after a
+ * pulse's sound that fits the interval (a longer one is cut there with the
+ * stop ramp, as the next pulse would cut it), and before the next would
+ * begin. */
 inline double pulses_seconds(float interval, int pulses) {
     return (pulses - 1 + 0.6) * static_cast<double>(interval);
 }

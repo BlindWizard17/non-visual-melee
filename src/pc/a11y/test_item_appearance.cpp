@@ -116,11 +116,17 @@ void items_there_at_go_are_taken_as_seen() {
 void nothing_from_game_and_after_a_scene() {
     a11y::NewItems items;
     items.tick(match_with({}));
-    /* From GAME! or TIME! on, taken as seen. */
+    /* From GAME! or TIME! on, nothing is new; online a rollback can take
+     * GAME! back, and an item listed only then is new as the match goes
+     * on. */
     A11yMatchState over = match_with({item(3, A11Y_It_Kind_Foods)});
     over.decided = true;
     assert(items.tick(over).empty());
     over.decided = false;
+    assert((serials(items.tick(over)) == std::vector<int>{3}));
+    over.decided = true;
+    over.item_count = 2;
+    over.items[1] = item(4, A11Y_It_Kind_Foods);
     assert(items.tick(over).empty());
     /* Outside a match nothing is listed, and nothing changes. */
     assert(items.tick(A11yMatchState{}).empty());

@@ -212,6 +212,11 @@ void silent_where_the_spec_says() {
     A11yMatchItem thrown = item(2, 20.0f);
     thrown.loose = false;
     assert(!cue.tick(match_with({held(1, 0.0f, 2), thrown}), mapping)[0].has_value());
+    /* From GAME! or TIME! on: the match is over, though its last ticks run
+     * on. */
+    A11yMatchState over = match_with({item(0, 20.0f)});
+    over.decided = true;
+    assert(!cue.tick(over, mapping)[0].has_value());
     /* Relative to you while you are out. */
     A11yMatchState out = match_with({item(0, 20.0f)});
     out.you.out = true;

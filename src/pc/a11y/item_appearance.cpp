@@ -25,9 +25,14 @@ std::span<const A11yMatchItem> NewItems::tick(const A11yMatchState& match) {
     if (!match.running) {
         return m_new;
     }
-    /* Before GO, on its tick and from GAME! on, what is listed is taken as
-     * seen. */
-    const bool quiet = !m_started || match.decided;
+    /* From GAME! or TIME! on nothing is new, and nothing is marked seen:
+     * online a predicted tick can reach GAME! and a rollback take it back,
+     * and an item listed only then is new once the match goes on. */
+    if (match.decided) {
+        return m_new;
+    }
+    /* Before GO and on its tick, what is listed is taken as seen. */
+    const bool quiet = !m_started;
     m_started = m_started || match.you.can_move;
     for (int i = 0; i < match.item_count; i++) {
         const A11yMatchItem& item = match.items[i];

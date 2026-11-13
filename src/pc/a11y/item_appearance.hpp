@@ -21,7 +21,8 @@ namespace a11y {
 
 /* The items that appear in a match, by serial, from GO to GAME! or TIME!.
  * Items already there at GO are taken as seen, unsaid, and so is anything
- * listed before GO or from GAME! on. A serial names one item for the whole
+ * listed before GO; from GAME! on none is new or marked seen, so a GAME!
+ * a rollback takes back loses no item. A serial names one item for the whole
  * match and is never given again in it, so an item is new once: a rollback
  * that makes it again, or a list that drops it and lists it again, says
  * nothing more. */
