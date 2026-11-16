@@ -13,6 +13,7 @@
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
@@ -28,6 +29,20 @@ struct Sound {
     std::vector<float> samples;
 
     double seconds() const { return static_cast<double>(samples.size()) / kCueRate; }
+};
+
+/* A cue's sound made at pitches a semitone apart (cue_sounds.hpp,
+ * pitched_copies), so that a pitch keeps the sound's length: a play takes
+ * the copy nearest its pitch and plays it at the rest of the pitch, within
+ * the copies' span a quarter-tone at most, which changes its length by 3%
+ * at most. */
+struct PitchedCopies {
+    float lowest = 1.0f; /* the first copy's pitch; each next a semitone up */
+    std::vector<Sound> sounds;
+
+    /* The copy whose pitch is nearest, the first or the last past the span. */
+    int nearest(float pitch) const;
+    float pitch_of(int copy) const;
 };
 
 enum class VoiceMode {
@@ -54,8 +69,10 @@ enum class VoiceMode {
  * value over a few milliseconds, except the interval, which the next pulse
  * takes as it is. */
 struct VoiceTargets {
-    float pan = 0.0f;   /* -1 full left, 1 full right */
-    float pitch = 1.0f; /* playback rate: 2 is an octave up */
+    float pan = 0.0f; /* -1 full left, 1 full right */
+    /* 2 is an octave up: the playback rate, which also halves the sound's
+     * length, or with copies (VoiceSpec) the copy nearest it. */
+    float pitch = 1.0f;
     /* The voice's own factor of the volume chain: 0 to 1 for a cue's voice,
      * up to CueEngine::kMostBoost for a once voice, whose boost it carries. */
     float gain = 1.0f;
@@ -67,6 +84,11 @@ struct VoiceSpec {
     int cue = 0;      /* the cue whose level it takes, 0 to kMaxCues - 1 */
     Sound sound;      /* none for a once voice */
     VoiceMode mode = VoiceMode::looped;
+    /* A pulsed voice's or a one-shot's sound at other pitches, shared with
+     * the voices that play the same sound. Each pulse or play takes the
+     * copy nearest the pitch it starts at, and keeps it while its pitch
+     * glides. None: the sound itself at the pitch as its playback rate. */
+    std::shared_ptr<const PitchedCopies> copies;
     /* Targets are held to these. A pulsed voice's sound longer than its
      * interval, at its pitch, is cut by the next pulse. */
     float fastest_interval = 0.05f;
@@ -201,10 +223,11 @@ private:
      * a pulse cut by the next pulse, a one-shot by its next trigger. Audio
      * thread only. */
     struct Tail {
+        const std::vector<float>* samples = nullptr; /* the sound or copy it played */
         double position = 0.0;
         float fade = 0.0f; /* the play's level, down to 0: none left */
         float pan = 0.0f;
-        float pitch = 1.0f;
+        float rate = 1.0f; /* frames of samples a frame of the mix */
         float gain = 0.0f;
     };
     struct Voice {
@@ -235,6 +258,10 @@ private:
         float pan_now = 0.0f;
         float pitch_now = 1.0f;
         float gain_now = 0.0f; /* the whole chain, glided */
+        /* The sound, or the copy the play took, and the copy's pitch: it
+         * plays at pitch_now / copy_pitch. */
+        const std::vector<float>* samples = nullptr;
+        float copy_pitch = 1.0f;
         Tail tail;
         Once once;
     };
@@ -246,7 +273,11 @@ private:
     void render_once(Voice& v, float chain, float* out, int frames);
     void render_one_shot(Voice& v, float chain, float* out, int frames);
     /* The tail's next frame, at its fade times level, added into frame. */
-    static void add_tail(Tail& tail, const std::vector<float>& samples, float level, float* frame);
+    static void add_tail(Tail& tail, float level, float* frame);
+    /* A play's start: the copy nearest pitch_now, or the sound itself. */
+    static void take_copy(Voice& v);
+    /* The play cut where it is, as a tail at the given level. */
+    static Tail cut(const Voice& v, float level);
     void fall_between(Voice& v, double interval, int frames) const;
 
     CueEngineOptions m_options;

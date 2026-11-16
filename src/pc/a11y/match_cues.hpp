@@ -35,9 +35,10 @@ struct MatchCueSounds {
 
 class MatchCues {
 public:
-    /* The shortest fast interval and the widest pitch range the settings
-     * allow, which your cue's tick is made to fit: the tick played at the
-     * range's bottom, half of it down, must end inside the fastest pulse. */
+    /* The shortest fast interval the settings allow, which your cue's tick
+     * is made to fit: as long at every pitch, it ends inside the fastest
+     * pulse. The widest pitch range, half of it down and half up, which
+     * the position cues' and item cues' sounds have copies across. */
     static constexpr float kFastestInterval = 0.07f;
     static constexpr float kWidestPitchRange = 2.0f;
     /* The shortest interval the opponent's cue allows, which its longer

@@ -80,9 +80,11 @@ float sample_at(const std::vector<float>& samples, double position, bool looped)
 
 /* A play's level near its sound's end: the stop ramp over its last frames,
  * so a sound that does not end in silence still ends without a click. */
-float end_level(double length, double position, float pitch) {
-    return static_cast<float>((length - position) / pitch) * kRampStep;
+float end_level(double length, double position, float rate) {
+    return static_cast<float>((length - position) / rate) * kRampStep;
 }
+
+constexpr float kSemitonesPerOctave = 12.0f;
 
 /* Constant power: left² + right² stays 1 across the pan. */
 void add_panned(float* frame, float sample, float pan) {
@@ -92,6 +94,19 @@ void add_panned(float* frame, float sample, float pan) {
 }
 
 }  // namespace
+
+int PitchedCopies::nearest(float pitch) const {
+    const int last = static_cast<int>(sounds.size()) - 1;
+    if (last <= 0 || !(pitch > 0.0f)) {
+        return 0;
+    }
+    const float semitones = std::round(kSemitonesPerOctave * std::log2(pitch / lowest));
+    return static_cast<int>(std::clamp(semitones, 0.0f, static_cast<float>(last)));
+}
+
+float PitchedCopies::pitch_of(int copy) const {
+    return lowest * std::exp2(static_cast<float>(copy) / kSemitonesPerOctave);
+}
 
 CueEngine::CueEngine(CueEngineOptions options) : m_options(std::move(options)) {
     if (!m_options.dump.empty()) {
@@ -146,6 +161,17 @@ int CueEngine::add_voice(VoiceSpec spec) {
     } else if (spec.sound.samples.empty()) {
         return refuse("no sound");
     }
+    if (spec.copies != nullptr) {
+        if (spec.mode != VoiceMode::pulsed && spec.mode != VoiceMode::one_shot) {
+            return refuse("only a pulsed voice or a one-shot plays copies");
+        }
+        const std::vector<Sound>& sounds = spec.copies->sounds;
+        if (sounds.empty() || std::any_of(sounds.begin(), sounds.end(),
+                                  [](const Sound& copy) { return copy.samples.empty(); }))
+        {
+            return refuse("an empty copy");
+        }
+    }
     spec.lowest_pitch = clamped(spec.lowest_pitch, 0.01f, kHighestPitch, 1.0f);
     spec.fastest_interval = clamped(spec.fastest_interval, 0.0f, kLongestInterval, 0.0f);
     const int partner = spec.alternates_with;
@@ -158,6 +184,7 @@ int CueEngine::add_voice(VoiceSpec spec) {
     }
     Voice& v = m_voices[static_cast<size_t>(count)];
     v.spec = std::move(spec);
+    v.samples = &v.spec.sound.samples;
     write_targets(v, VoiceTargets{});
     v.partner.store(partner, std::memory_order_relaxed);
     /* Publishes the voice whole: the audio thread reads the count first. */
@@ -425,12 +452,12 @@ void CueEngine::render_voice(Voice& v, float chain, float* out, int frames) {
         v.pitch_now = pitch;
         v.gain_now = gain;
         v.tail.fade = 0.0f;
+        take_copy(v);
         if (v.spec.mode == VoiceMode::pulsed && on) {
             fall_between(v, interval, frames);
         }
     }
-    const std::vector<float>& samples = v.spec.sound.samples;
-    const double length = static_cast<double>(samples.size());
+    double length = static_cast<double>(v.samples->size());
     const bool looped = v.spec.mode == VoiceMode::looped;
     const float ramp_step = on ? kRampStep : -kRampStep;
     for (int f = 0; f < frames; f++) {
@@ -450,20 +477,22 @@ void CueEngine::render_voice(Voice& v, float chain, float* out, int frames) {
                 if (v.position < length) {
                     /* Still playing: it fades out as the next begins. A
                      * sound that fits has always ended by now. */
-                    v.tail = Tail{v.position, 1.0f, v.pan_now, v.pitch_now, v.gain_now};
+                    v.tail = cut(v, 1.0f);
                 }
                 v.position = 0.0;
+                take_copy(v);
+                length = static_cast<double>(v.samples->size());
             }
             v.since_pulse += 1.0;
             if (v.tail.fade > 0.0f) {
-                add_tail(v.tail, samples, v.ramp, out + 2 * f);
+                add_tail(v.tail, v.ramp, out + 2 * f);
             }
             if (v.position > length + kSoundReach) {
                 continue;
             }
         }
-        const float sample = sample_at(samples, v.position, looped) * v.ramp * v.gain_now;
-        v.position += v.pitch_now;
+        const float sample = sample_at(*v.samples, v.position, looped) * v.ramp * v.gain_now;
+        v.position += v.pitch_now / v.copy_pitch;
         if (looped && v.position >= length) {
             v.position = std::fmod(v.position, length);
         }
@@ -482,15 +511,14 @@ void CueEngine::render_one_shot(Voice& v, float chain, float* out, int frames) {
     const float pan = v.pan.load(std::memory_order_relaxed);
     const float pitch = v.pitch.load(std::memory_order_relaxed);
     const float gain = chain * v.gain.load(std::memory_order_relaxed);
-    const std::vector<float>& samples = v.spec.sound.samples;
-    const double length = static_cast<double>(samples.size());
     if (triggers != v.triggers_taken.load(std::memory_order_relaxed)) {
         v.busy.store(true, std::memory_order_seq_cst);
         /* Stopped since: a trigger not yet begun is dropped. */
         if (on) {
             if (v.sounding) {
-                const float level = std::min(v.ramp, end_level(length, v.position, v.pitch_now));
-                v.tail = Tail{v.position, level, v.pan_now, v.pitch_now, v.gain_now};
+                const double playing = static_cast<double>(v.samples->size());
+                const float rate = v.pitch_now / v.copy_pitch;
+                v.tail = cut(v, std::min(v.ramp, end_level(playing, v.position, rate)));
             }
             /* From the top, at the trigger's targets, ramping in. */
             v.sounding = true;
@@ -499,6 +527,7 @@ void CueEngine::render_one_shot(Voice& v, float chain, float* out, int frames) {
             v.pan_now = pan;
             v.pitch_now = pitch;
             v.gain_now = gain;
+            take_copy(v);
         }
         v.triggers_taken.store(triggers, std::memory_order_seq_cst);
     }
@@ -506,6 +535,8 @@ void CueEngine::render_one_shot(Voice& v, float chain, float* out, int frames) {
         v.busy.store(false, std::memory_order_seq_cst);
         return;
     }
+    const std::vector<float>& samples = *v.samples;
+    const double length = static_cast<double>(samples.size());
     const float ramp_step = on ? kRampStep : -kRampStep;
     for (int f = 0; f < frames; f++) {
         if (v.sounding) {
@@ -516,30 +547,48 @@ void CueEngine::render_one_shot(Voice& v, float chain, float* out, int frames) {
                 v.pan_now += (pan - v.pan_now) * kGlide;
                 v.gain_now += (gain - v.gain_now) * kGlide;
                 v.pitch_now += (pitch - v.pitch_now) * kPitchGlide;
+                const float rate = v.pitch_now / v.copy_pitch;
                 const float level =
-                    std::min(v.ramp, end_level(length, v.position, v.pitch_now)) * v.gain_now;
+                    std::min(v.ramp, end_level(length, v.position, rate)) * v.gain_now;
                 const float sample = sample_at(samples, v.position, false) * level;
-                v.position += v.pitch_now;
+                v.position += rate;
                 add_panned(out + 2 * f, sample, v.pan_now);
             }
         }
         if (v.tail.fade > 0.0f) {
-            add_tail(v.tail, samples, 1.0f, out + 2 * f);
+            add_tail(v.tail, 1.0f, out + 2 * f);
         }
     }
     v.busy.store(v.sounding, std::memory_order_seq_cst);
 }
 
-void CueEngine::add_tail(Tail& tail, const std::vector<float>& samples, float level, float* frame) {
-    const double length = static_cast<double>(samples.size());
-    tail.fade = std::min(tail.fade - kRampStep, end_level(length, tail.position, tail.pitch));
+void CueEngine::add_tail(Tail& tail, float level, float* frame) {
+    const double length = static_cast<double>(tail.samples->size());
+    tail.fade = std::min(tail.fade - kRampStep, end_level(length, tail.position, tail.rate));
     if (tail.fade <= 0.0f) {
         tail.fade = 0.0f;
         return;
     }
-    const float sample = sample_at(samples, tail.position, false) * tail.fade * tail.gain * level;
-    tail.position += tail.pitch;
+    const float sample =
+        sample_at(*tail.samples, tail.position, false) * tail.fade * tail.gain * level;
+    tail.position += tail.rate;
     add_panned(frame, sample, tail.pan);
+}
+
+void CueEngine::take_copy(Voice& v) {
+    const PitchedCopies* copies = v.spec.copies.get();
+    if (copies == nullptr) {
+        v.samples = &v.spec.sound.samples;
+        v.copy_pitch = 1.0f;
+        return;
+    }
+    const int copy = copies->nearest(v.pitch_now);
+    v.samples = &copies->sounds[static_cast<size_t>(copy)].samples;
+    v.copy_pitch = copies->pitch_of(copy);
+}
+
+CueEngine::Tail CueEngine::cut(const Voice& v, float level) {
+    return Tail{v.samples, v.position, level, v.pan_now, v.pitch_now / v.copy_pitch, v.gain_now};
 }
 
 void CueEngine::render_once(Voice& v, float chain, float* out, int frames) {
@@ -633,7 +682,7 @@ void CueEngine::fall_between(Voice& v, double interval, int frames) const {
     /* The count reaches the interval, and the pulse starts, after the
      * wait. */
     v.since_pulse = interval - wait;
-    v.position = static_cast<double>(v.spec.sound.samples.size()) + kSoundReach + 1.0;
+    v.position = static_cast<double>(v.samples->size()) + kSoundReach + 1.0;
 }
 
 bool OneShotPool::add(CueEngine& engine, const VoiceSpec& spec) {

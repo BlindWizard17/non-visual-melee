@@ -226,6 +226,43 @@ target_compile_definitions(a11y_miniaudio PUBLIC MA_NO_DEVICE_IO MA_NO_ENCODING)
 target_compile_options(a11y_miniaudio PRIVATE -w)
 target_link_libraries(melee PRIVATE a11y_miniaudio)
 
+# Signalsmith Stretch (MIT, header-only, with its own copy of the Signalsmith
+# DSP library), the spectral pitch shifter that makes a cue sound from a file
+# at other pitches with its length kept (pitch_shift.cpp, the Star Fox 64
+# fork's choice). 1.1.0 is the last release that carries everything it needs
+# in its own archive. Downloaded at configure like miniaudio; its two licence
+# files go into the CI packages. Compiled once in its own library, optimised
+# even in a debug build, where the library runs about ten times slower.
+set(A11Y_STRETCH_VERSION 1.1.0)
+set(A11Y_STRETCH_SHA256 5a103e5b9fd3ec14ebe4523167e6e6300a768aeaa361fc4fa2695a95da7ef0d9)
+set(_stretch_dir "${CMAKE_BINARY_DIR}/signalsmith-stretch-${A11Y_STRETCH_VERSION}")
+if (NOT EXISTS "${_stretch_dir}/signalsmith-stretch.h")
+    message(STATUS "a11y: downloading Signalsmith Stretch ${A11Y_STRETCH_VERSION}")
+    set(_stretch_url
+            "https://github.com/Signalsmith-Audio/signalsmith-stretch/archive/refs/tags/${A11Y_STRETCH_VERSION}.zip")
+    set(_stretch_zip "${CMAKE_BINARY_DIR}/signalsmith-stretch-${A11Y_STRETCH_VERSION}.zip")
+    file(DOWNLOAD "${_stretch_url}" "${_stretch_zip}"
+            EXPECTED_HASH SHA256=${A11Y_STRETCH_SHA256}
+            STATUS _stretch_status)
+    list(GET _stretch_status 0 _stretch_code)
+    if (NOT _stretch_code EQUAL 0)
+        list(GET _stretch_status 1 _stretch_error)
+        file(REMOVE "${_stretch_zip}")
+        message(FATAL_ERROR "a11y: could not download ${_stretch_url}: ${_stretch_error}. "
+                "The first configure needs network access.")
+    endif ()
+    # The archive's one folder is signalsmith-stretch-<version>, the
+    # directory named above.
+    file(ARCHIVE_EXTRACT INPUT "${_stretch_zip}" DESTINATION "${CMAKE_BINARY_DIR}"
+            PATTERNS "*/signalsmith-stretch.h" "*/LICENSE.txt" "*/dsp/*.h" "*/dsp/LICENSE.txt")
+    file(REMOVE "${_stretch_zip}")
+endif ()
+add_library(a11y_pitch_shift STATIC ${CMAKE_CURRENT_LIST_DIR}/pitch_shift.cpp)
+target_include_directories(a11y_pitch_shift PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(a11y_pitch_shift SYSTEM PRIVATE "${_stretch_dir}")
+target_compile_options(a11y_pitch_shift PRIVATE -O2)
+target_link_libraries(melee PRIVATE a11y_pitch_shift)
+
 # melee-netcheck, the connection checker: a console program of its own beside
 # melee.exe that says whether a network suits Direct Connect, and tests two
 # players' networks against each other (netcheck.cpp). Linked statically, so
@@ -565,7 +602,7 @@ if (TARGET unit_tests)
             ${CMAKE_CURRENT_LIST_DIR}/cue_engine.cpp
             ${CMAKE_CURRENT_LIST_DIR}/cue_sounds.cpp)
     target_include_directories(cue_engine_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
-    target_link_libraries(cue_engine_test PRIVATE a11y_miniaudio)
+    target_link_libraries(cue_engine_test PRIVATE a11y_miniaudio a11y_pitch_shift)
     target_compile_options(cue_engine_test PRIVATE -UNDEBUG)
     add_test(NAME cue_engine COMMAND cue_engine_test ${CMAKE_BINARY_DIR}/cue_pulse_train.f32)
     set_tests_properties(cue_engine PROPERTIES LABELS melee FIXTURES_SETUP cue_dump)
@@ -699,7 +736,7 @@ if (TARGET unit_tests)
             ${CMAKE_CURRENT_LIST_DIR}/value_file.cpp
             ${CMAKE_CURRENT_LIST_DIR}/speech.cpp)
     target_include_directories(match_cues_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
-    target_link_libraries(match_cues_test PRIVATE a11y_miniaudio)
+    target_link_libraries(match_cues_test PRIVATE a11y_miniaudio a11y_pitch_shift)
     target_compile_options(match_cues_test PRIVATE -UNDEBUG)
     add_test(NAME match_cues COMMAND match_cues_test)
     set_tests_properties(match_cues PROPERTIES LABELS melee)

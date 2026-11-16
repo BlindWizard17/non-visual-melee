@@ -6,7 +6,9 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <memory>
 #include <numbers>
 #include <vector>
 
@@ -129,6 +131,21 @@ Sound load_sound(const std::string& path) {
     }
     lead_in(sound, kLeadInSeconds);
     return sound;
+}
+
+std::shared_ptr<const PitchedCopies> pitched_copies(
+    float lowest, float highest, const std::function<Sound(float pitch)>& make) {
+    auto copies = std::make_shared<PitchedCopies>();
+    copies->lowest = lowest;
+    /* Past highest by less than a semitone at most; a hair under a whole
+     * count of semitones is that count, not one more. */
+    constexpr float kSlack = 1e-3f;
+    const float semitones = 12.0f * std::log2(highest / lowest);
+    const int count = std::max(1, static_cast<int>(std::ceil(semitones - kSlack)) + 1);
+    for (int i = 0; i < count; i++) {
+        copies->sounds.push_back(make(copies->pitch_of(i)));
+    }
+    return copies;
 }
 
 }  // namespace a11y

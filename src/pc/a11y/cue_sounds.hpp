@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Making cue sounds, at engine start: a cue's sound is a mono buffer
  * (Sound, cue_engine.hpp), filled here by code, from any miniaudio data
- * source, or from a file. */
+ * source, or from a file, and its copies at other pitches. */
 #pragma once
 #include "cue_engine.hpp"
+#include <functional>
+#include <memory>
 #include <string>
 
 /* miniaudio.h's own declaration, so including this header does not pull in
@@ -43,5 +45,13 @@ constexpr float kLeadInSeconds = 0.012f;
  * the file is missing or cannot be decoded, which is logged naming the file
  * and why: the cue playing it stays silent. */
 Sound load_sound(const std::string& path);
+
+/* A sound's copies a semitone apart, from lowest up to highest or less
+ * than a semitone past it, each made by make at its pitch: made again by
+ * the code that made the sound, or a file's sound moved there by
+ * shift_pitch (pitch_shift.hpp). A voice that plays them keeps the sound's
+ * length at every pitch (cue_engine.hpp, VoiceSpec). */
+std::shared_ptr<const PitchedCopies> pitched_copies(
+    float lowest, float highest, const std::function<Sound(float pitch)>& make);
 
 }  // namespace a11y

@@ -7,6 +7,7 @@
 #include "cue_engine.hpp"
 #include "cue_sounds.hpp"
 #include "miniaudio.h"
+#include "pitch_shift.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -25,6 +26,7 @@ using a11y::CueEngine;
 using a11y::CueEngineOptions;
 using a11y::CueLevel;
 using a11y::kCueRate;
+using a11y::PitchedCopies;
 using a11y::Sound;
 using a11y::VoiceMode;
 using a11y::VoiceSpec;
@@ -798,6 +800,162 @@ void a_pool_overlaps_and_takes_the_oldest() {
 }
 
 /* A 16-bit PCM WAV of frames frames, each channel holding its constant. */
+/* Copies a semitone apart across the span, each made at its pitch; a
+ * pitch finds the nearest, the first or last past the span. */
+void pitched_copies_span_their_pitches() {
+    std::vector<float> asked;
+    std::shared_ptr<const PitchedCopies> copies =
+        a11y::pitched_copies(0.5f, 2.0f, [&asked](float pitch) {
+            asked.push_back(pitch);
+            return constant(pitch, 10);
+        });
+    assert(copies->sounds.size() == 25);
+    assert(asked.size() == 25);
+    assert(near(copies->pitch_of(0), 0.5, 1e-6));
+    assert(near(copies->pitch_of(12), 1.0, 1e-6));
+    assert(near(copies->pitch_of(24), 2.0, 1e-5));
+    assert(near(asked[13], std::exp2(1.0 / 12.0), 1e-5));
+    assert(copies->nearest(1.0f) == 12);
+    assert(copies->nearest(1.02f) == 12);
+    assert(copies->nearest(1.04f) == 13);
+    assert(copies->nearest(0.3f) == 0);
+    assert(copies->nearest(5.0f) == 24);
+    /* A span short of a whole semitone still ends past it. */
+    assert(a11y::pitched_copies(1.0f, 1.03f, [](float) {
+        return constant(1.0f, 10);
+    })->sounds.size() == 2);
+}
+
+/* Copies whose level tells which one plays: a quarter of its pitch. */
+std::shared_ptr<const PitchedCopies> level_copies(int frames) {
+    return a11y::pitched_copies(
+        0.5f, 2.0f, [frames](float pitch) { return constant(pitch / 4.0f, frames); });
+}
+
+/* The frames the left channel sounds within a slice of the mix. */
+int sounding_frames(const std::vector<float>& out, int from, int to) {
+    auto [first, last] =
+        sounding_span(std::vector<float>(out.begin() + 2 * static_cast<std::ptrdiff_t>(from),
+            out.begin() + 2 * static_cast<std::ptrdiff_t>(to)));
+    return first == -1 ? 0 : last - first + 1;
+}
+
+/* With copies, each pulse plays the copy nearest the pitch it starts at:
+ * as long at every pitch, and only the rest of the pitch past the nearest
+ * copy changes its length. */
+void a_pulse_with_copies_keeps_its_length() {
+    VoiceSpec spec = pulsed("pitched", constant(0.25f, 2400), 0.05f);
+    spec.lowest_pitch = 0.5f;
+    spec.copies = level_copies(2400);
+    CueEngine engine;
+    const int voice = engine.add_voice(spec);
+    VoiceTargets targets = at(0.0f, 0.2f);
+    targets.pitch = 2.0f;
+    engine.start(voice, targets);
+    std::vector<float> out = render(engine, 4800);
+    /* An octave down from the next pulse on; the glide has long ended by
+     * the pulse after. */
+    targets.pitch = 0.5f;
+    engine.set_targets(voice, targets);
+    std::vector<float> more = render(engine, 4 * 9600 - 4800);
+    out.insert(out.end(), more.begin(), more.end());
+    /* Between copies: the nearest, 13 semitones over 0.5, at the rest. */
+    targets.pitch = 1.03f;
+    engine.set_targets(voice, targets);
+    more = render(engine, 3 * 9600);
+    out.insert(out.end(), more.begin(), more.end());
+    check_onsets(onsets(out), {0, 9600, 19200, 28800, 38400, 48000, 57600});
+    assert(sounding_frames(out, 0, 9600) == 2400);
+    assert(near(out[2 * 1200], 0.5 * kCentredFull, 1e-5));
+    assert(near(sounding_frames(out, 19200, 28800), 2400, 1));
+    assert(near(out[2 * (19200 + 1200)], 0.125 * kCentredFull, 1e-5));
+    const double copy = 0.5 * std::exp2(13.0 / 12.0);
+    assert(near(sounding_frames(out, 57600, 67200), 2400 * copy / 1.03, 2));
+    assert(near(out[2 * (57600 + 1200)], copy / 4.0 * kCentredFull, 1e-5));
+}
+
+/* A one-shot with copies is as long at every pitch; past the copies' span
+ * the last copy plays at the rest. */
+void a_one_shot_with_copies_keeps_its_length() {
+    VoiceSpec spec = one_shot("pitched", constant(0.25f, 4800));
+    spec.lowest_pitch = 0.5f;
+    spec.copies = level_copies(4800);
+    CueEngine engine;
+    const int voice = engine.add_voice(spec);
+    engine.trigger(voice, placed(0.0f, 2.0f));
+    std::vector<float> out = render(engine, kCueRate / 5);
+    assert(sounding_span(out) == std::make_pair(0, 4799));
+    assert(near(out[2 * 2400], 0.5 * kCentredFull, 1e-5));
+    engine.trigger(voice, placed(0.0f, 0.5f));
+    out = render(engine, kCueRate / 5);
+    assert(sounding_span(out) == std::make_pair(0, 4799));
+    assert(near(out[2 * 2400], 0.125 * kCentredFull, 1e-5));
+    engine.trigger(voice, placed(0.0f, 4.0f));
+    out = render(engine, kCueRate / 5);
+    assert(sounding_span(out) == std::make_pair(0, 2399));
+    assert(near(out[2 * 1200], 0.5 * kCentredFull, 1e-5));
+}
+
+/* Only a pulsed voice or a one-shot plays copies, and every copy has a
+ * sound. */
+void copies_are_refused_where_they_cannot_play() {
+    CueEngine engine;
+    VoiceSpec hum = looped("hum", constant(0.5f, 480));
+    hum.copies = level_copies(480);
+    s_lines.clear();
+    assert(engine.add_voice(hum) == -1);
+    assert(logged("[a11y] cue hum refused: only a pulsed voice or a one-shot plays copies"));
+    VoiceSpec tick = pulsed("tick", constant(0.5f, 480), 0.02f);
+    tick.copies = a11y::pitched_copies(
+        0.5f, 2.0f, [](float pitch) { return pitch == 1.0f ? Sound{} : constant(0.5f, 480); });
+    assert(engine.add_voice(tick) == -1);
+    assert(logged("[a11y] cue tick refused: an empty copy"));
+}
+
+/* Zero crossings a second over a slice of a sound. */
+double crossing_rate(const Sound& sound, int from, int to) {
+    int crossings = 0;
+    for (int i = from + 1; i < to; i++) {
+        const float a = sound.samples[static_cast<size_t>(i - 1)];
+        const float b = sound.samples[static_cast<size_t>(i)];
+        if ((a < 0.0f) != (b < 0.0f)) {
+            crossings++;
+        }
+    }
+    return crossings * static_cast<double>(kCueRate) / (to - from);
+}
+
+double rms(const Sound& sound, int from, int to) {
+    double sum = 0.0;
+    for (int i = from; i < to; i++) {
+        const double sample = sound.samples[static_cast<size_t>(i)];
+        sum += sample * sample;
+    }
+    return std::sqrt(sum / (to - from));
+}
+
+/* The spectral shift moves a tone's pitch and keeps its length, timing and
+ * level; a factor of 1 leaves the sound as it was. */
+void a_shifted_sound_keeps_its_length() {
+    Sound tone = sine(1000.0, kCueRate / 10, 0.5);
+    a11y::shape_edges(tone, 0.005f);
+    a11y::lead_in(tone, 0.012f);
+    const int frames = static_cast<int>(tone.samples.size());
+    const int from = frames / 4;
+    const int to = frames * 3 / 4;
+    assert(a11y::shift_pitch(tone, 1.0f).samples == tone.samples);
+    for (float factor : {0.5f, 2.0f}) {
+        Sound shifted = a11y::shift_pitch(tone, factor);
+        assert(static_cast<int>(shifted.samples.size()) == frames);
+        /* A crossing twice a cycle. */
+        assert(near(crossing_rate(shifted, from, to), 2000.0 * factor, 40.0));
+        assert(near(20.0 * std::log10(rms(shifted, from, to) / rms(tone, from, to)), 0.0, 1.5));
+        /* Quiet through most of the lead-in, as the tone is silent. */
+        assert(rms(shifted, 0, 240) < 0.05 * rms(tone, from, to));
+    }
+    assert(a11y::shift_pitch(Sound{}, 2.0f).samples.empty());
+}
+
 void write_wav(
     const std::filesystem::path& path, int rate, const std::vector<float>& channels, int frames) {
     const auto put = [](std::ofstream& file, uint32_t value, int bytes) {
@@ -937,6 +1095,11 @@ int main(int argc, char** argv) {
     a_one_shot_takes_its_cue_level();
     a_one_shot_retriggered_restarts_without_a_click();
     a_pool_overlaps_and_takes_the_oldest();
+    pitched_copies_span_their_pitches();
+    a_pulse_with_copies_keeps_its_length();
+    a_one_shot_with_copies_keeps_its_length();
+    copies_are_refused_where_they_cannot_play();
+    a_shifted_sound_keeps_its_length();
     a_sound_file_loads_mono_at_the_cue_rate(dump + ".sounds");
     a_sound_file_missing_or_unreadable_is_silent(dump + ".sounds");
     the_trace_has_a_line_per_voice_each_tick(dump + ".trace");

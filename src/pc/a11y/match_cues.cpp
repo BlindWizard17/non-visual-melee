@@ -2,9 +2,11 @@
 #include "match_cues.hpp"
 #include "cue_sounds.hpp"
 #include "miniaudio.h"
+#include "pitch_shift.hpp"
 #include "pc/pc.h"
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <numbers>
 #include <string>
 #include <utility>
@@ -40,18 +42,18 @@ constexpr float kItemPositionBoost = 1.0f;
 constexpr double kAppearancePreviewTail = 0.1;
 
 /* The tick of your position cue, the Star Fox 64 fork's aim click: a
- * 1500 Hz sine decaying fast over 20 ms, its last 3 ms faded to silence,
- * after 12 ms of silence so the start ramp leaves its attack alone. 32 ms
- * in all, 64 ms an octave down. */
-Sound tick_sound() {
-    constexpr double kHz = 1500.0;
+ * 1500 Hz sine at its own pitch decaying fast over 20 ms, its last 3 ms
+ * faded to silence, after 12 ms of silence so the start ramp leaves its
+ * attack alone. 32 ms in all, at every pitch. */
+Sound tick_sound(float pitch) {
+    const double hz = 1500.0 * pitch;
     constexpr float kSeconds = 0.02f;
     constexpr float kDecayPerSecond = 150.0f;
     constexpr float kAmplitude = 0.95f;
     constexpr float kTailSeconds = 0.003f;
     constexpr float kLeadInSeconds = 0.012f;
     ma_waveform_config config =
-        ma_waveform_config_init(ma_format_f32, 1, kCueRate, ma_waveform_type_sine, kAmplitude, kHz);
+        ma_waveform_config_init(ma_format_f32, 1, kCueRate, ma_waveform_type_sine, kAmplitude, hz);
     ma_waveform wave;
     Sound sound;
     if (ma_waveform_init(&config, &wave) == MA_SUCCESS) {
@@ -67,11 +69,12 @@ Sound tick_sound() {
 }
 
 /* The opponent's pulse, lower and rounder than your tick so the two never
- * blend: a 400 Hz sine with a little of its octave, rising over 5 ms and
- * dying away over 70 ms, its last 10 ms faded to silence, after the tick's
- * 12 ms of lead-in. 82 ms in all, 164 ms an octave down. */
-Sound pulse_sound() {
-    constexpr double kHz = 400.0;
+ * blend: a 400 Hz sine at its own pitch with a little of its octave,
+ * rising over 5 ms and dying away over 70 ms, its last 10 ms faded to
+ * silence, after the tick's 12 ms of lead-in. 82 ms in all, at every
+ * pitch. */
+Sound pulse_sound(float pitch) {
+    const double hz = 400.0 * pitch;
     constexpr float kOctave = 0.25f; /* the octave's share of the fundamental */
     constexpr float kSeconds = 0.07f;
     constexpr float kAttackSeconds = 0.005f;
@@ -83,7 +86,7 @@ Sound pulse_sound() {
     sound.samples.resize(static_cast<size_t>(kSeconds * kCueRate));
     for (size_t i = 0; i < sound.samples.size(); i++) {
         const double t = static_cast<double>(i) / kCueRate;
-        const double phase = 2.0 * std::numbers::pi * kHz * t;
+        const double phase = 2.0 * std::numbers::pi * hz * t;
         const double tone = std::sin(phase) + kOctave * std::sin(2.0 * phase);
         sound.samples[i] = static_cast<float>(tone) * kAmplitude / (1.0f + kOctave) *
                            std::exp(-kDecayPerSecond * static_cast<float>(t));
@@ -168,28 +171,51 @@ VoiceSpec ledge_voice(const char* name, int cue, int alternates_with = -1) {
     return voice;
 }
 
-/* A position cue's pulsed voice, its sound made to fit the fastest interval
- * played at the lowest pitch the widest pitch range gives. */
-VoiceSpec position_voice(const char* name, int cue, Sound sound, float fastest_interval) {
+/* The pitches the widest pitch range reaches, half of it down and half up:
+ * the position cues and the item cues are held to them, and their sounds'
+ * copies span them. */
+const float kLowestPitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
+const float kHighestPitch = std::exp2(MatchCues::kWidestPitchRange / 2.0f);
+
+/* A sound made by code, made again at each copy's pitch. */
+std::shared_ptr<const PitchedCopies> made_copies(Sound (*make)(float pitch)) {
+    return pitched_copies(kLowestPitch, kHighestPitch, make);
+}
+
+/* A file's sound moved to each copy's pitch; none for a missing file, whose
+ * voice is refused for its empty sound. */
+std::shared_ptr<const PitchedCopies> shifted_copies(const Sound& sound) {
+    if (sound.samples.empty()) {
+        return nullptr;
+    }
+    return pitched_copies(
+        kLowestPitch, kHighestPitch, [&sound](float pitch) { return shift_pitch(sound, pitch); });
+}
+
+/* A position cue's pulsed voice: its copies keep the sound's length at
+ * every pitch, so a sound that fits the fastest interval fits it at any. */
+VoiceSpec position_voice(const char* name, int cue, Sound sound,
+    std::shared_ptr<const PitchedCopies> copies, float fastest_interval) {
     VoiceSpec voice;
     voice.name = name;
     voice.cue = cue;
     voice.sound = std::move(sound);
+    voice.copies = std::move(copies);
     voice.mode = VoiceMode::pulsed;
     voice.fastest_interval = fastest_interval;
-    voice.lowest_pitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
+    voice.lowest_pitch = kLowestPitch;
     return voice;
 }
 
-/* The appearance cue's one-shot, held to the lowest pitch the widest pitch
- * range gives. */
+/* The appearance cue's one-shot, as long at every pitch. */
 VoiceSpec appearance_voice(int cue, Sound sound) {
     VoiceSpec voice;
     voice.name = "item appearance";
     voice.cue = cue;
+    voice.copies = shifted_copies(sound);
     voice.sound = std::move(sound);
     voice.mode = VoiceMode::one_shot;
-    voice.lowest_pitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
+    voice.lowest_pitch = kLowestPitch;
     return voice;
 }
 
@@ -431,10 +457,10 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           kItemPositionBoost)),
       m_item_position_values(add_item_position_values(m_item_position_cue.group)),
       m_items(add_item_values(settings.add_shared("item_cues", "Item cues"))) {
-    VoiceSpec your =
-        position_voice("your position", m_your_cue.values.cue, tick_sound(), kFastestInterval);
-    VoiceSpec opponent = position_voice(
-        "opponent position", m_opponent_cue.values.cue, pulse_sound(), kOpponentFastestInterval);
+    VoiceSpec your = position_voice("your position", m_your_cue.values.cue, tick_sound(1.0f),
+        made_copies(tick_sound), kFastestInterval);
+    VoiceSpec opponent = position_voice("opponent position", m_opponent_cue.values.cue,
+        pulse_sound(1.0f), made_copies(pulse_sound), kOpponentFastestInterval);
     VoiceSpec gap;
     gap.name = "gap";
     gap.cue = m_gap_cue.values.cue;
@@ -458,8 +484,9 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
     m_appearance_pool.add(m_engine, appearance);
     m_appearance_preview_pool.add(m_engine, preview_of(std::move(appearance)));
     /* One voice per item tracked, the nearest's named plainly. */
+    std::shared_ptr<const PitchedCopies> item_copies = shifted_copies(sounds.item_position);
     VoiceSpec item = position_voice("item position", m_item_position_cue.values.cue,
-        std::move(sounds.item_position), kItemFastestInterval);
+        std::move(sounds.item_position), std::move(item_copies), kItemFastestInterval);
     for (std::size_t i = 0; i < m_item_position_voices.size(); i++) {
         VoiceSpec spec = item;
         if (i > 0) {
@@ -641,7 +668,7 @@ bool MatchCues::appearance_preview_frame(double seconds, bool pan_to_camera) {
     const std::array<OneShotPlay, 3> plays = appearance_preview(m_items.mapping(pan_to_camera));
     double end = 0.0;
     for (const OneShotPlay& play : plays) {
-        end = std::max(end, play.at + m_appearance_seconds / play.targets.pitch);
+        end = std::max(end, play.at + m_appearance_seconds);
     }
     while (m_preview_played < plays.size() && seconds >= plays[m_preview_played].at) {
         m_appearance_preview_pool.trigger(m_engine, plays[m_preview_played].targets);
