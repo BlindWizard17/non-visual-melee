@@ -84,8 +84,6 @@ float end_level(double length, double position, float rate) {
     return static_cast<float>((length - position) / rate) * kRampStep;
 }
 
-constexpr float kSemitonesPerOctave = 12.0f;
-
 /* Constant power: left² + right² stays 1 across the pan. */
 void add_panned(float* frame, float sample, float pan) {
     const float angle = (pan + 1.0f) * kQuarterPi;
@@ -164,6 +162,9 @@ int CueEngine::add_voice(VoiceSpec spec) {
     if (spec.copies != nullptr) {
         if (spec.mode != VoiceMode::pulsed && spec.mode != VoiceMode::one_shot) {
             return refuse("only a pulsed voice or a one-shot plays copies");
+        }
+        if (!std::isfinite(spec.copies->lowest) || !(spec.copies->lowest > 0.0f)) {
+            return refuse("copies with no lowest pitch");
         }
         const std::vector<Sound>& sounds = spec.copies->sounds;
         if (sounds.empty() || std::any_of(sounds.begin(), sounds.end(),

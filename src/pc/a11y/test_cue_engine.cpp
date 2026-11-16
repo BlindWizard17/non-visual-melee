@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -799,7 +800,6 @@ void a_pool_overlaps_and_takes_the_oldest() {
     assert(partial.trigger(small, placed(0.0f, 1.0f)) != -1);
 }
 
-/* A 16-bit PCM WAV of frames frames, each channel holding its constant. */
 /* Copies a semitone apart across the span, each made at its pitch; a
  * pitch finds the nearest, the first or last past the span. */
 void pitched_copies_span_their_pitches() {
@@ -896,8 +896,8 @@ void a_one_shot_with_copies_keeps_its_length() {
     assert(near(out[2 * 1200], 0.5 * kCentredFull, 1e-5));
 }
 
-/* Only a pulsed voice or a one-shot plays copies, and every copy has a
- * sound. */
+/* Only a pulsed voice or a one-shot plays copies, every copy has a sound,
+ * and the copies a pitch. */
 void copies_are_refused_where_they_cannot_play() {
     CueEngine engine;
     VoiceSpec hum = looped("hum", constant(0.5f, 480));
@@ -910,6 +910,13 @@ void copies_are_refused_where_they_cannot_play() {
         0.5f, 2.0f, [](float pitch) { return pitch == 1.0f ? Sound{} : constant(0.5f, 480); });
     assert(engine.add_voice(tick) == -1);
     assert(logged("[a11y] cue tick refused: an empty copy"));
+    VoiceSpec unpitched = pulsed("unpitched", constant(0.5f, 480), 0.02f);
+    auto copies = std::make_shared<a11y::PitchedCopies>();
+    copies->lowest = 0.0f;
+    copies->sounds.push_back(constant(0.5f, 480));
+    unpitched.copies = copies;
+    assert(engine.add_voice(unpitched) == -1);
+    assert(logged("[a11y] cue unpitched refused: copies with no lowest pitch"));
 }
 
 /* Zero crossings a second over a slice of a sound. */
@@ -950,12 +957,20 @@ void a_shifted_sound_keeps_its_length() {
         /* A crossing twice a cycle. */
         assert(near(crossing_rate(shifted, from, to), 2000.0 * factor, 40.0));
         assert(near(20.0 * std::log10(rms(shifted, from, to) / rms(tone, from, to)), 0.0, 1.5));
-        /* Quiet through most of the lead-in, as the tone is silent. */
-        assert(rms(shifted, 0, 240) < 0.05 * rms(tone, from, to));
+        /* Quiet through the lead-in to within a millisecond of its end, as
+         * the tone is silent, and sounding once the tone's fade-in is done:
+         * the shift keeps the onset where it was. */
+        constexpr int kLeadIn = kCueRate * 12 / 1000;
+        constexpr int kMillisecond = kCueRate / 1000;
+        const double steady = rms(tone, from, to);
+        assert(rms(shifted, 0, kLeadIn - kMillisecond) < 0.05 * steady);
+        assert(
+            rms(shifted, kLeadIn + 5 * kMillisecond, kLeadIn + 10 * kMillisecond) > 0.5 * steady);
     }
     assert(a11y::shift_pitch(Sound{}, 2.0f).samples.empty());
 }
 
+/* A 16-bit PCM WAV of frames frames, each channel holding its constant. */
 void write_wav(
     const std::filesystem::path& path, int rate, const std::vector<float>& channels, int frames) {
     const auto put = [](std::ofstream& file, uint32_t value, int bytes) {

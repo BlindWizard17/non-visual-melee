@@ -37,6 +37,7 @@ struct Sound {
  * the copies' span a quarter-tone at most, which changes its length by 3%
  * at most. */
 struct PitchedCopies {
+    static constexpr float kSemitonesPerOctave = 12.0f;
     float lowest = 1.0f; /* the first copy's pitch; each next a semitone up */
     std::vector<Sound> sounds;
 

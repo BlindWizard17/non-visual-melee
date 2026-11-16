@@ -15,7 +15,7 @@ Every pitched cue here plays a short, fixed sound from its start at each pulse o
 
 ## Consequences
 
-- No delay and no work on the audio thread beyond picking a copy at each pulse. The copies take memory, a sound's length a semitone across the widest pitch range (`MatchCues::kWidestPitchRange`), which is small for sounds of a tenth of a second, and a little time at start.
+- No delay and no work on the audio thread beyond picking a copy at each pulse. The copies take memory, one sound's length per semitone across the widest pitch range (`MatchCues::kWidestPitchRange`), which is small for sounds of a tenth of a second, and a little time at start.
 - A looped voice cannot carry copies: a held sound changing copies would need a crossfade. The gap warning's hum, the one looped cue, keeps one pitch.
 - A pitch beyond the copies' span plays the last copy at the rest, changing the length again; the span is the widest the settings allow, so a match cue never goes beyond it.
 - The shifter is a configure-time download, header only, compiled once in its own library, and its two MIT licences (the shifter's and the Signalsmith DSP library's inside it) ship in the CI packages.

@@ -236,7 +236,9 @@ target_link_libraries(melee PRIVATE a11y_miniaudio)
 set(A11Y_STRETCH_VERSION 1.1.0)
 set(A11Y_STRETCH_SHA256 5a103e5b9fd3ec14ebe4523167e6e6300a768aeaa361fc4fa2695a95da7ef0d9)
 set(_stretch_dir "${CMAKE_BINARY_DIR}/signalsmith-stretch-${A11Y_STRETCH_VERSION}")
-if (NOT EXISTS "${_stretch_dir}/signalsmith-stretch.h")
+# The stamp marks a finished extraction, as Prism's does.
+set(_stretch_stamp "${_stretch_dir}/.extracted")
+if (NOT EXISTS "${_stretch_stamp}")
     message(STATUS "a11y: downloading Signalsmith Stretch ${A11Y_STRETCH_VERSION}")
     set(_stretch_url
             "https://github.com/Signalsmith-Audio/signalsmith-stretch/archive/refs/tags/${A11Y_STRETCH_VERSION}.zip")
@@ -253,9 +255,11 @@ if (NOT EXISTS "${_stretch_dir}/signalsmith-stretch.h")
     endif ()
     # The archive's one folder is signalsmith-stretch-<version>, the
     # directory named above.
+    file(REMOVE_RECURSE "${_stretch_dir}")
     file(ARCHIVE_EXTRACT INPUT "${_stretch_zip}" DESTINATION "${CMAKE_BINARY_DIR}"
             PATTERNS "*/signalsmith-stretch.h" "*/LICENSE.txt" "*/dsp/*.h" "*/dsp/LICENSE.txt")
     file(REMOVE "${_stretch_zip}")
+    file(TOUCH "${_stretch_stamp}")
 endif ()
 add_library(a11y_pitch_shift STATIC ${CMAKE_CURRENT_LIST_DIR}/pitch_shift.cpp)
 target_include_directories(a11y_pitch_shift PRIVATE ${CMAKE_CURRENT_LIST_DIR})

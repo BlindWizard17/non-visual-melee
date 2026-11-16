@@ -174,12 +174,12 @@ VoiceSpec ledge_voice(const char* name, int cue, int alternates_with = -1) {
 /* The pitches the widest pitch range reaches, half of it down and half up:
  * the position cues and the item cues are held to them, and their sounds'
  * copies span them. */
-const float kLowestPitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
-const float kHighestPitch = std::exp2(MatchCues::kWidestPitchRange / 2.0f);
+const float kRangeLowestPitch = std::exp2(-MatchCues::kWidestPitchRange / 2.0f);
+const float kRangeHighestPitch = std::exp2(MatchCues::kWidestPitchRange / 2.0f);
 
 /* A sound made by code, made again at each copy's pitch. */
 std::shared_ptr<const PitchedCopies> made_copies(Sound (*make)(float pitch)) {
-    return pitched_copies(kLowestPitch, kHighestPitch, make);
+    return pitched_copies(kRangeLowestPitch, kRangeHighestPitch, make);
 }
 
 /* A file's sound moved to each copy's pitch; none for a missing file, whose
@@ -188,8 +188,8 @@ std::shared_ptr<const PitchedCopies> shifted_copies(const Sound& sound) {
     if (sound.samples.empty()) {
         return nullptr;
     }
-    return pitched_copies(
-        kLowestPitch, kHighestPitch, [&sound](float pitch) { return shift_pitch(sound, pitch); });
+    return pitched_copies(kRangeLowestPitch, kRangeHighestPitch,
+        [&sound](float pitch) { return shift_pitch(sound, pitch); });
 }
 
 /* A position cue's pulsed voice: its copies keep the sound's length at
@@ -203,7 +203,7 @@ VoiceSpec position_voice(const char* name, int cue, Sound sound,
     voice.copies = std::move(copies);
     voice.mode = VoiceMode::pulsed;
     voice.fastest_interval = fastest_interval;
-    voice.lowest_pitch = kLowestPitch;
+    voice.lowest_pitch = kRangeLowestPitch;
     return voice;
 }
 
@@ -215,7 +215,7 @@ VoiceSpec appearance_voice(int cue, Sound sound) {
     voice.copies = shifted_copies(sound);
     voice.sound = std::move(sound);
     voice.mode = VoiceMode::one_shot;
-    voice.lowest_pitch = kLowestPitch;
+    voice.lowest_pitch = kRangeLowestPitch;
     return voice;
 }
 
