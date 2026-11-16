@@ -113,13 +113,13 @@ wait '"Preview ledge warning: Play, button\. Plays a short sample of the ledge w
 key Down
 wait '"Ledge warning distance, slider, 40 units\. Left and right to adjust\. How far from the edge the warning starts, in stage units\. Final Destination is about 170 wide\."$'
 key Down
-wait '"Item appearance cue, On, Left and right to change\. A chime where an item appears in a match: from you or, with Items relative to you off, on the stage\."$'
+wait '"Item appearance cue, On, Left and right to change\. A sound where an item appears in a match: from you or, with Items relative to you off, on the stage\."$'
 key Down
 wait '"Item appearance cue volume, slider, 100%\. Left and right to adjust\. The loudness of the item appearance cue, under the cue volume\."$'
 key Down
 wait '"Preview item appearance cue: Play, button\. Plays a short sample of the item appearance cue, as it sounds in a match\."$'
 key Down
-wait "\"Item's position cue, On, Left and right to change\. A blip at a steady pace from the nearest item lying loose, from you or, with Items relative to you off, on the stage; it quickens while the item is within reach, where a press would pick it up\.\"$"
+wait "\"Item's position cue, On, Left and right to change\. A pulse at a steady pace from the nearest item lying loose, from you or, with Items relative to you off, on the stage; it quickens while the item is within reach, where a press would pick it up\.\"$"
 key Down
 wait "\"Item's position cue volume, slider, 100%\. Left and right to adjust\. The loudness of the item's position cue, under the cue volume\.\"$"
 key Down

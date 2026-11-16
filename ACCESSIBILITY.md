@@ -84,16 +84,17 @@ included.
     floor below you that has a lethal gap past it, louder and nearer the middle
     as you get closer to it. An edge with more floor below it, such as a
     platform's, gives no warning.
-  - **Item appearance cue.** A chime where each item appears, from you by default:
-    panned to the side it is on and higher in pitch when it is above you.
-    With Items relative to you off, it pans and pitches with where the item
-    is on the stage instead. An item made from the Training menu chimes as the
-    menu closes.
-  - **Item's position cue.** A blip at a steady pace from the nearest item
-    lying loose, placed as the item appearance cue is, from you or on the stage.
+  - **Item appearance cue.** A sound where each item appears, from you by
+    default: panned to the side it is on and higher in pitch when it is
+    above you. With Items relative to you off, it pans and pitches with
+    where the item is on the stage instead. An item made from the Training
+    menu sounds as the menu closes.
+  - **Item's position cue.** A pulse at a steady pace from the nearest item
+    lying loose, placed as the item appearance cue is, from you or on the
+    stage.
     It quickens while the item is within reach: face the item and get close.
     An item within reach is followed even when another lies nearer, such as
-    one just behind you, so the quick blip is always the item you would
+    one just behind you, so the quick pulse is always the item you would
     take.
     On the ground pressing A then picks it up. In the air only a light item
     is within reach, and only while your hands are empty: Z catches it there,
@@ -102,7 +103,7 @@ included.
     Starman or a Mushroom never quickens it, since you take one by walking
     into it.
 - **Items.** With items on, in VS. Mode, Training and online, you hear each
-  item come in: your screen reader names it and the item appearance cue chimes
+  item come in: your screen reader names it and the item appearance cue sounds
   where it is. The item's position cue then leads you to the nearest one
   lying about, and each item a player takes is said in that player's voice.
   The items are the ones Item Switch lists, containers such as the Capsule,

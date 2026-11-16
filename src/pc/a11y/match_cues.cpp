@@ -30,7 +30,7 @@ constexpr float kGapBoost = 1.0f;
 /* The ledge warning's chord, as tuned by ear. */
 constexpr float kLedgeBoost = 1.6f;
 /* A prepared file peaks just under full scale (prepare_sounds.py): the
- * appearance chime lifted as tuned by ear beside the others, the item's
+ * appearance sound lifted as tuned by ear beside the others, the item's
  * position cue not yet. */
 constexpr float kAppearanceBoost = 2.0f;
 constexpr float kItemPositionBoost = 1.0f;
@@ -421,11 +421,11 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           kLedgeBoost)),
       m_ledge(add_ledge_values(m_ledge_cue.group)),
       m_appearance_cue(settings.add_cue(std::string(kAppearanceId), "Item appearance cue",
-          "A chime where an item appears in a match: from you or, with Items relative to you "
+          "A sound where an item appears in a match: from you or, with Items relative to you "
           "off, on the stage.",
           kAppearanceBoost)),
       m_item_position_cue(settings.add_cue(std::string(kItemPositionId), "Item's position cue",
-          "A blip at a steady pace from the nearest item lying loose, from you or, with Items "
+          "A pulse at a steady pace from the nearest item lying loose, from you or, with Items "
           "relative to you off, on the stage; it quickens while the item is within reach, where "
           "a press would pick it up.",
           kItemPositionBoost)),

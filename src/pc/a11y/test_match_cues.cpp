@@ -88,8 +88,8 @@ a11y::Sound tone(double hz, float seconds) {
     return sound;
 }
 
-/* The appearance cue's chime, 0.1 s of 1 kHz, and the item's position
- * cue's blip, 0.04 s of 800 Hz. */
+/* The appearance cue's sound, 0.1 s of 1 kHz, and the item's position
+ * cue's, 0.04 s of 800 Hz. */
 a11y::MatchCueSounds test_sounds() {
     a11y::MatchCueSounds sounds;
     sounds.item_appearance = tone(1000.0, 0.1f);
