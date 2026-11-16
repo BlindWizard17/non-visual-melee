@@ -840,7 +840,7 @@ int sounding_frames(const std::vector<float>& out, int from, int to) {
     return first == -1 ? 0 : last - first + 1;
 }
 
-/* With copies, each pulse plays the copy nearest the pitch it starts at:
+/* With copies, each pulse plays the copy nearest its pitch:
  * as long at every pitch, and only the rest of the pitch past the nearest
  * copy changes its length. */
 void a_pulse_with_copies_keeps_its_length() {
@@ -872,6 +872,31 @@ void a_pulse_with_copies_keeps_its_length() {
     const double copy = 0.5 * std::exp2(13.0 / 12.0);
     assert(near(sounding_frames(out, 57600, 67200), 2400 * copy / 1.03, 2));
     assert(near(out[2 * (57600 + 1200)], copy / 4.0 * kCentredFull, 1e-5));
+}
+
+/* A pulse just after a jump of pitch takes the copy of the pitch the glide
+ * is heading for, not the one it has reached: the old one played at the
+ * new pitch would last over twice as long. */
+void a_pulse_after_a_jump_takes_its_target_copy() {
+    VoiceSpec spec = pulsed("pitched", constant(0.25f, 2400), 0.05f);
+    spec.lowest_pitch = 0.5f;
+    spec.copies = level_copies(2400);
+    CueEngine engine;
+    const int voice = engine.add_voice(spec);
+    VoiceTargets targets = at(0.0f, 0.2f);
+    targets.pitch = 2.0f;
+    engine.start(voice, targets);
+    /* Two octaves down a millisecond before the second pulse. */
+    std::vector<float> out = render(engine, 9600 - 48);
+    targets.pitch = 0.5f;
+    engine.set_targets(voice, targets);
+    std::vector<float> more = render(engine, 9600 + 48);
+    out.insert(out.end(), more.begin(), more.end());
+    check_onsets(onsets(out), {0, 9600});
+    assert(near(out[2 * (9600 + 100)], 0.125 * kCentredFull, 1e-5));
+    /* The glide starts it fast, from nearly the old pitch: shorter than its
+     * own length, never longer. */
+    assert(sounding_frames(out, 9600, 19200) < 2400);
 }
 
 /* A one-shot with copies is as long at every pitch; past the copies' span
@@ -1112,6 +1137,7 @@ int main(int argc, char** argv) {
     a_pool_overlaps_and_takes_the_oldest();
     pitched_copies_span_their_pitches();
     a_pulse_with_copies_keeps_its_length();
+    a_pulse_after_a_jump_takes_its_target_copy();
     a_one_shot_with_copies_keeps_its_length();
     copies_are_refused_where_they_cannot_play();
     a_shifted_sound_keeps_its_length();

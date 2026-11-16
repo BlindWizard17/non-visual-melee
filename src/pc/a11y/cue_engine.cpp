@@ -453,7 +453,7 @@ void CueEngine::render_voice(Voice& v, float chain, float* out, int frames) {
         v.pitch_now = pitch;
         v.gain_now = gain;
         v.tail.fade = 0.0f;
-        take_copy(v);
+        take_copy(v, pitch);
         if (v.spec.mode == VoiceMode::pulsed && on) {
             fall_between(v, interval, frames);
         }
@@ -481,7 +481,11 @@ void CueEngine::render_voice(Voice& v, float chain, float* out, int frames) {
                     v.tail = cut(v, 1.0f);
                 }
                 v.position = 0.0;
-                take_copy(v);
+                /* The copy of the pitch the glide is heading for, so a
+                 * pulse just after a jump plays near its own length once
+                 * the glide is done, not the old pitch's copy sped up or
+                 * slowed down all the way to the new one. */
+                take_copy(v, pitch);
                 length = static_cast<double>(v.samples->size());
             }
             v.since_pulse += 1.0;
@@ -528,7 +532,7 @@ void CueEngine::render_one_shot(Voice& v, float chain, float* out, int frames) {
             v.pan_now = pan;
             v.pitch_now = pitch;
             v.gain_now = gain;
-            take_copy(v);
+            take_copy(v, pitch);
         }
         v.triggers_taken.store(triggers, std::memory_order_seq_cst);
     }
@@ -576,14 +580,14 @@ void CueEngine::add_tail(Tail& tail, float level, float* frame) {
     add_panned(frame, sample, tail.pan);
 }
 
-void CueEngine::take_copy(Voice& v) {
+void CueEngine::take_copy(Voice& v, float pitch) {
     const PitchedCopies* copies = v.spec.copies.get();
     if (copies == nullptr) {
         v.samples = &v.spec.sound.samples;
         v.copy_pitch = 1.0f;
         return;
     }
-    const int copy = copies->nearest(v.pitch_now);
+    const int copy = copies->nearest(pitch);
     v.samples = &copies->sounds[static_cast<size_t>(copy)].samples;
     v.copy_pitch = copies->pitch_of(copy);
 }
