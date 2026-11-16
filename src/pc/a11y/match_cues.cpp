@@ -29,9 +29,10 @@ constexpr float kOpponentBoost = 3.0f;
 constexpr float kGapBoost = 1.0f;
 /* The ledge warning's chord, as tuned by ear. */
 constexpr float kLedgeBoost = 1.6f;
-/* A prepared file peaks just under full scale (prepare_sounds.py): no lift
- * until heard beside the others. */
-constexpr float kAppearanceBoost = 1.0f;
+/* A prepared file peaks just under full scale (prepare_sounds.py): the
+ * appearance chime lifted as tuned by ear beside the others, the item's
+ * position cue not yet. */
+constexpr float kAppearanceBoost = 2.0f;
 constexpr float kItemPositionBoost = 1.0f;
 
 /* After the last play of the appearance cue's preview has sounded, a

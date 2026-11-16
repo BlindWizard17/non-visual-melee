@@ -842,7 +842,7 @@ void the_item_cues_register_in_their_places() {
     }
     assert((keys == std::vector<std::string>{
                         "item_appearance.on", "item_appearance.volume", "item_appearance.boost"}));
-    assert(f.model.find("item_appearance.boost")->default_value == 1.0f);
+    assert(f.model.find("item_appearance.boost")->default_value == 2.0f);
     assert(f.match_cues.appearance_voices().size() == a11y::OneShotPool::kSize);
     assert(f.match_cues.appearance_preview_voices().size() == a11y::OneShotPool::kSize);
     /* With no sound, no voices, and the rest of the cues as before. */

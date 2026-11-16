@@ -111,10 +111,8 @@ included.
   - **The settings.** Under Match announcement settings, Item appearances and
     Item pickups switch the two announcements. Under Cue settings, Item
     appearance cue and Item's position cue each have a switch, a volume and
-    a Preview, and Items relative to you, after them, chooses whether both cues place an item from
-    you, the default, or on the stage.
-  - **The sounds** are stand-ins for now, a chime and a short blip, to be
-    replaced by recorded ones.
+    a Preview, and Items relative to you, after them, chooses whether both
+    cues place an item from you, the default, or on the stage.
   - **Not yet:** a character's own items, such as Peach's turnips and Link's
     bombs, Pokémon from a Poké Ball, and stage hazards. An item that
     disappears or is used up is not said either.
