@@ -1,8 +1,9 @@
 # The launcher's Accessibility category: the top level read in its turn and
 # round to the first, Steering off and on again there; Cue settings opened
 # by Enter, every row read and round to the first, Cue volume a step down
-# and back, Up past its first row to Preview item's position cue, played,
-# on up to Preview appearance cue, played, and on up to Ledge warning
+# and back, Up past its first row to Items relative to you and on to
+# Preview item's position cue, played, on up to Preview item appearance
+# cue, played, and on up to Ledge warning
 # distance, a step up and back, Preview ledge warning
 # played to its end, pressed again and stopped
 # by Left, which goes back to the opening row; Match announcement settings
@@ -79,8 +80,6 @@ wait "\"Preview opponent's position cue: Play, button\. Plays a short sample of 
 key Down
 wait "\"Opponent's position cue relative to you, On, Left and right to change\. On, the opponent's position cue sounds where the opponent is from you: on your left or right, above or below you; off, where they are on the stage\.\"$"
 key Down
-wait '"Items relative to you, On, Left and right to change\. On, the item cues sound where an item is from you: on your left or right, above or below you; off, where it is on the stage\."$'
-key Down
 wait "\"Position cues follow the camera, On, Left and right to change\. On, the cues pan across what the camera shows; off, across the whole stage to the side blast zones\. Cues relative to you are left alone\.\"$"
 key Down
 wait '"Gap warning, On, Left and right to change\. A low, steady hum while you are in the air with no floor below you, where falling straight down would knock you out\."$'
@@ -97,17 +96,19 @@ wait '"Preview ledge warning: Play, button\. Plays a short sample of the ledge w
 key Down
 wait '"Ledge warning distance, slider, 40 units\. Left and right to adjust\. How far from the edge the warning starts, in stage units\. Final Destination is about 170 wide\."$'
 key Down
-wait '"Appearance cue, On, Left and right to change\. A chime where an item appears in a match: from you or, with Items relative to you off, on the stage\."$'
+wait '"Item appearance cue, On, Left and right to change\. A chime where an item appears in a match: from you or, with Items relative to you off, on the stage\."$'
 key Down
-wait '"Appearance cue volume, slider, 100%\. Left and right to adjust\. The loudness of the appearance cue, under the cue volume\."$'
+wait '"Item appearance cue volume, slider, 100%\. Left and right to adjust\. The loudness of the item appearance cue, under the cue volume\."$'
 key Down
-wait '"Preview appearance cue: Play, button\. Plays a short sample of the appearance cue, as it sounds in a match\."$'
+wait '"Preview item appearance cue: Play, button\. Plays a short sample of the item appearance cue, as it sounds in a match\."$'
 key Down
 wait "\"Item's position cue, On, Left and right to change\. A blip at a steady pace from the nearest item lying loose, from you or, with Items relative to you off, on the stage; it quickens while the item is within reach, where a press would pick it up\.\"$"
 key Down
 wait "\"Item's position cue volume, slider, 100%\. Left and right to adjust\. The loudness of the item's position cue, under the cue volume\.\"$"
 key Down
 wait "\"Preview item's position cue: Play, button\. Plays a short sample of the item's position cue, as it sounds in a match\.\"$"
+key Down
+wait '"Items relative to you, On, Left and right to change\. On, the item cues sound where an item is from you: on your left or right, above or below you; off, where it is on the stage\."$'
 key Down
 wait '"Cue volume, slider, 100%\. '
 
@@ -121,9 +122,11 @@ wait '\[a11y\] accessibility settings: saved cues\.volume = 100$'
 wait '"100%"$'
 ini '^cues\.volume = 100$'
 
-# Up past the submenu's first row wraps to its last, Preview item's position
-# cue: played, steady pulses a little to your right, then quicker ones as
-# if within reach, to its end.
+# Up past the submenu's first row wraps to its last, Items relative to you,
+# and one more reaches Preview item's position cue: played, steady pulses a
+# little to your right, then quicker ones as if within reach, to its end.
+key Up
+wait '"Items relative to you, On, '
 key Up
 wait '"Preview item.s position cue: Play, button\. '
 key Return
@@ -131,11 +134,11 @@ wait '\[a11y\] cue preview: item_position$'
 wait '\[a11y\] cue item position preview start pan 0\.\d+ pitch 1\.00 gain 1\.00 interval 0\.500$'
 wait '\[a11y\] cue item position preview stop '
 
-# Up three more to Preview appearance cue: played, its three one-shots to
+# Up three more to Preview item appearance cue: played, its three one-shots to
 # the left, to the right and above, each on the first voice, free again by
 # the next.
 key Up Up Up
-wait '"Preview appearance cue: Play, button\. '
+wait '"Preview item appearance cue: Play, button\. '
 key Return
 wait '\[a11y\] cue preview: item_appearance$'
 wait '\[a11y\] cue item appearance preview 1 play pan -0\.\d+ pitch 1\.00 '

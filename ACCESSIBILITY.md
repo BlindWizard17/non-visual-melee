@@ -84,13 +84,13 @@ included.
     floor below you that has a lethal gap past it, louder and nearer the middle
     as you get closer to it. An edge with more floor below it, such as a
     platform's, gives no warning.
-  - **Appearance cue.** A chime where each item appears, from you by default:
+  - **Item appearance cue.** A chime where each item appears, from you by default:
     panned to the side it is on and higher in pitch when it is above you.
     With Items relative to you off, it pans and pitches with where the item
     is on the stage instead. An item made from the Training menu chimes as the
     menu closes.
   - **Item's position cue.** A blip at a steady pace from the nearest item
-    lying loose, placed as the appearance cue is, from you or on the stage.
+    lying loose, placed as the item appearance cue is, from you or on the stage.
     It quickens while the item is within reach: face the item and get close.
     An item within reach is followed even when another lies nearer, such as
     one just behind you, so the quick blip is always the item you would
@@ -102,16 +102,16 @@ included.
     Starman or a Mushroom never quickens it, since you take one by walking
     into it.
 - **Items.** With items on, in VS. Mode, Training and online, you hear each
-  item come in: your screen reader names it and the appearance cue chimes
+  item come in: your screen reader names it and the item appearance cue chimes
   where it is. The item's position cue then leads you to the nearest one
   lying about, and each item a player takes is said in that player's voice.
   The items are the ones Item Switch lists, containers such as the Capsule,
   Crate and Barrel included, and whatever comes out of a broken container.
   A heavy item, such as a Crate, is followed only once it has landed.
   - **The settings.** Under Match announcement settings, Item appearances and
-    Item pickups switch the two announcements. Under Cue settings, Appearance
-    cue and Item's position cue each have a switch, a volume and a Preview,
-    and Items relative to you chooses whether both cues place an item from
+    Item pickups switch the two announcements. Under Cue settings, Item
+    appearance cue and Item's position cue each have a switch, a volume and
+    a Preview, and Items relative to you, after them, chooses whether both cues place an item from
     you, the default, or on the stage.
   - **The sounds** are stand-ins for now, a chime and a short blip, to be
     replaced by recorded ones.

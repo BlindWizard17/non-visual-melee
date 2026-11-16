@@ -62,9 +62,9 @@ _Avoid_: Locator, radar, beacon, player cue, item cue (alone)
 A way of placing a cue in which the pan says which side of you something is on and how far, and the pitch how far above or below you, rather than where it is on the stage. The opponent's position cue and the item cues each have their own switch for it.
 _Avoid_: Player-relative, local frame, egocentric
 
-**Appearance cue**:
+**Item appearance cue**:
 A cue played once as an item appears, placed where it appears, in the air if that is where it comes in.
-_Avoid_: Spawn cue, sparkle, item alert
+_Avoid_: Appearance cue, spawn cue, sparkle, item alert
 
 **Gap warning**:
 A held, low cue that sounds while you are in the air with no floor anywhere below you, platforms included, so that falling straight down would take you past the bottom blast zone. It says nothing of whether you can still get back; the game's own sound near the bottom blast zone is a separate warning.

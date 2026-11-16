@@ -6,15 +6,16 @@
  * knocked out and comes back at respawn, and one switch frames both pans;
  * the gap warning registers after them, starts over a gap, holds and
  * stops, and its tone loops without a seam; the ledge warning registers
- * last, with the snapshot's edge offset, starts on each side near a deadly
- * end and stops away from it or over a gap, and pulses 5 times a second on
- * its side; the item cues' frame registers after the opponent's cue and
- * the appearance cue after the ledge warning, which plays a one-shot where
- * each new item comes in, a burst on voices of its own, nothing for an item
- * there at GO, held through a pause, and silent with its switch off;
- * the item's position cue registers last and follows the nearest loose
- * item, moving to a nearer one without restarting, quickening within
- * reach and stopping at a pickup, a pause and the port menu;
+ * after it, with the snapshot's edge offset, starts on each side near a
+ * deadly end and stops away from it or over a gap, and pulses 5 times a
+ * second on its side; the item appearance cue registers after the ledge
+ * warning, plays a one-shot where each new item comes in, a burst on
+ * voices of its own, nothing for an item there at GO, held through a
+ * pause, and silent with its switch off; the item's position cue registers
+ * after it and the item cues' frame last, and the item's position cue
+ * follows the nearest loose item, moving to a nearer one without
+ * restarting, quickening within reach and stopping at a pickup, a pause
+ * and the port menu;
  * silenced for the port menu, every voice stops and the next tick starts
  * the cues afresh. Each cue's preview sounds with every switch off and is
  * silent at a volume of 0, pulses as its moment says, restarts, stops with
@@ -184,11 +185,9 @@ void both_cues_register_and_fit() {
     assert(groups.size() == 9);
     assert(groups[1].id == "your_position" && groups[2].id == "opponent_position");
     assert(groups[2].title == "Opponent's position cue");
-    /* After both, the item cues' frame, then the value they share, one
-     * switch for both pans. */
-    assert(groups[3].id == "item_cues");
-    assert(groups[4].id == "position_cues" && groups[4].title == "Position cues");
-    assert(groups[4].values.size() == 1);
+    /* After both, the value they share, one switch for both pans. */
+    assert(groups[3].id == "position_cues" && groups[3].title == "Position cues");
+    assert(groups[3].values.size() == 1);
     const a11y::NamedValue* pan_to_camera = f.model.find("position_cues.pan_to_camera");
     assert(pan_to_camera != nullptr && pan_to_camera->kind == a11y::ValueKind::toggle);
     assert(pan_to_camera->default_value == 1.0f);
@@ -225,9 +224,9 @@ void the_gap_warning_registers_after_the_position_cues() {
     Fixture f;
     assert(f.match_cues.gap_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups[5].id == "gap_warning" && groups[5].title == "Gap warning");
+    assert(groups[4].id == "gap_warning" && groups[4].title == "Gap warning");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[5].values) {
+    for (const a11y::NamedValue* named : groups[4].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"gap_warning.on", "gap_warning.volume",
@@ -286,7 +285,6 @@ void the_menus_rows_are_the_specs_rows() {
                         "opponent_position.volume Opponent's position cue volume",
                         "preview opponent_position Preview opponent's position cue",
                         "opponent_position.relative Opponent's position cue relative to you",
-                        "item_cues.relative Items relative to you",
                         "position_cues.pan_to_camera Position cues follow the camera",
                         "gap_warning.on Gap warning",
                         "gap_warning.volume Gap warning volume",
@@ -295,12 +293,13 @@ void the_menus_rows_are_the_specs_rows() {
                         "ledge_warning.volume Ledge warning volume",
                         "preview ledge_warning Preview ledge warning",
                         "ledge_warning.distance Ledge warning distance",
-                        "item_appearance.on Appearance cue",
-                        "item_appearance.volume Appearance cue volume",
-                        "preview item_appearance Preview appearance cue",
+                        "item_appearance.on Item appearance cue",
+                        "item_appearance.volume Item appearance cue volume",
+                        "preview item_appearance Preview item appearance cue",
                         "item_position.on Item's position cue",
                         "item_position.volume Item's position cue volume",
                         "preview item_position Preview item's position cue",
+                        "item_cues.relative Items relative to you",
                     }));
 }
 
@@ -362,9 +361,9 @@ void the_ledge_warning_registers_after_the_gap_warning() {
     Fixture f;
     assert(f.match_cues.ledge_left_voice() >= 0 && f.match_cues.ledge_right_voice() >= 0);
     const auto& groups = f.model.groups();
-    assert(groups[6].id == "ledge_warning" && groups[6].title == "Ledge warning");
+    assert(groups[5].id == "ledge_warning" && groups[5].title == "Ledge warning");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[6].values) {
+    for (const a11y::NamedValue* named : groups[5].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"ledge_warning.on", "ledge_warning.volume",
@@ -813,11 +812,11 @@ void a_preview_plays_on_through_the_port_menus_silence() {
 void the_item_cues_register_in_their_places() {
     Fixture f;
     const auto& groups = f.model.groups();
-    /* The frame both item cues share, beside the opponent's: its switch
-     * shown, its distances tuning values starting at the opponent's. */
-    assert(groups[3].id == "item_cues" && groups[3].title == "Item cues");
+    /* The frame both item cues share, after both: its switch shown, its
+     * distances tuning values starting at the opponent's. */
+    assert(groups[8].id == "item_cues" && groups[8].title == "Item cues");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[3].values) {
+    for (const a11y::NamedValue* named : groups[8].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"item_cues.relative", "item_cues.pitch_range",
@@ -834,10 +833,11 @@ void the_item_cues_register_in_their_places() {
         assert(ours != nullptr && !ours->shown && ours != theirs);
         assert(ours->default_value == theirs->default_value);
     }
-    /* The appearance cue last, its pool and its preview's twins. */
-    assert(groups[7].id == "item_appearance" && groups[7].title == "Appearance cue");
+    /* The item appearance cue after the ledge warning, its pool and its
+     * preview's twins. */
+    assert(groups[6].id == "item_appearance" && groups[6].title == "Item appearance cue");
     keys.clear();
-    for (const a11y::NamedValue* named : groups[7].values) {
+    for (const a11y::NamedValue* named : groups[6].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{
@@ -1013,12 +1013,12 @@ void the_appearance_preview_plays_left_right_and_above() {
     assert(count_logged_starting("[a11y] cue item appearance preview 1 play pan -0.35") == 1);
 }
 
-void the_item_position_cue_registers_last() {
+void the_item_position_cue_registers_after_the_appearance_cue() {
     Fixture f;
     const auto& groups = f.model.groups();
-    assert(groups[8].id == "item_position" && groups[8].title == "Item's position cue");
+    assert(groups[7].id == "item_position" && groups[7].title == "Item's position cue");
     std::vector<std::string> keys;
-    for (const a11y::NamedValue* named : groups[8].values) {
+    for (const a11y::NamedValue* named : groups[7].values) {
         keys.push_back(named->key);
     }
     assert((keys == std::vector<std::string>{"item_position.on", "item_position.volume",
@@ -1179,7 +1179,7 @@ int main() {
     the_appearance_cue_is_silent_with_its_switch_off();
     a_scene_forgets_the_items_seen();
     the_appearance_preview_plays_left_right_and_above();
-    the_item_position_cue_registers_last();
+    the_item_position_cue_registers_after_the_appearance_cue();
     the_item_position_cue_follows_the_nearest_loose_item();
     within_reach_the_pulse_quickens();
     the_item_position_cue_stops_for_a_pause_and_the_port_menu();

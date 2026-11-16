@@ -47,3 +47,8 @@ The maintainer fixed findings 1 to 3 as the review recommended, kept 4 to 6 as t
 Verified at the quick, menus and online levels with `MELEE_A11Y_CUES=1`, the online level against the fork and against the base port (`--base-b ../melee-pc-base/build`): every run passed, `match_items`, `match_items_vs` and `match_items_net` among them; the unit tests passed but the known `launcher_data`.
 
 New for the play test: in the air the item's position cue quickens only for a light item with your hands empty, for Z; and an item in front of you within reach takes the cue from one nearer behind you.
+
+### 2026-11-16, play test findings: the settings
+
+- **Items relative to you** moved after the item cues' rows in Cue settings, the submenu's last row, so it follows the two cues it switches. Its keys in `a11y.ini` are unchanged.
+- **Appearance cue** renamed **Item appearance cue**, with its volume and Preview rows. Its key in `a11y.ini` (`item_appearance`) is unchanged.

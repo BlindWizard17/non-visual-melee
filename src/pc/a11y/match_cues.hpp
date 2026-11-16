@@ -205,17 +205,16 @@ private:
 
     CueEngine& m_engine;
     /* In the order the accessibility settings list them, in the file and
-     * in the menus: each cue registers its group and its values; the item
-     * cues' frame after the opponent's position cue, so Items relative to
-     * you sits beside the opponent's relative switch, then the value both
-     * position cues share, so its row sits beside theirs; the item's
-     * position cue last, after the appearance cue. */
+     * in the menus: each cue registers its group and its values; the value
+     * both position cues share after the opponent's position cue, so its
+     * row sits beside theirs; the item's position cue after the item
+     * appearance cue, then the item cues' frame last, so Items relative to
+     * you follows both item cues' rows. */
     CueGroup m_your_cue;
     YourValues m_your;
     CueGroup m_opponent_cue;
     OpponentValues m_opponent;
     OpponentPosition m_opponent_position;
-    ItemValues m_items;
     Switch m_pan_to_camera;
     CueGroup m_gap_cue;
     GapValues m_gap;
@@ -231,6 +230,7 @@ private:
     double m_appearance_seconds = 0.0;
     CueGroup m_item_position_cue;
     ItemPositionValues m_item_position_values;
+    ItemValues m_items;
     ItemPosition m_item_position;
     std::array<int, kTrackedItems> m_item_position_voices{};
     /* Each voice's item within reach, as last started or moved. */

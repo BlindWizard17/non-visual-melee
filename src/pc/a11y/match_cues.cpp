@@ -318,10 +318,10 @@ MatchCues::ItemValues MatchCues::add_item_values(ValueGroup group) {
             "below you; off, where it is on the stage.",
             defaults.relative, true}),
         group.add_number(NumberSpec{"pitch_range", "Pitch range",
-            "How many octaves the appearance cue's pitch spans: relative to you, from the height "
-            "distance below you to as far above; on the stage, from the bottom blast zone to the "
-            "top of the camera's view. Level with you, or midway, it is the cue's own pitch. The "
-            "item's position cue has its own.",
+            "How many octaves the item appearance cue's pitch spans: relative to you, from the "
+            "height distance below you to as far above; on the stage, from the bottom blast zone "
+            "to the top of the camera's view. Level with you, or midway, it is the cue's own "
+            "pitch. The item's position cue has its own.",
             "", defaults.stage.pitch_range, 0.0f, kWidestPitchRange, 0.1f}),
         group.add_number(NumberSpec{"side_distance", "Side distance",
             "Relative to you: how far to your side an item sounds fully to that side.", "units",
@@ -404,7 +404,6 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           "nearest opponent is, from you or, with relative to you off, on the stage.",
           kOpponentBoost)),
       m_opponent(add_opponent_values(m_opponent_cue.group)),
-      m_items(add_item_values(settings.add_shared("item_cues", "Item cues"))),
       m_pan_to_camera(settings.add_shared("position_cues", "Position cues")
               .add_switch(SwitchSpec{"pan_to_camera", "Position cues follow the camera",
                   "On, the cues pan across what the camera shows; off, across the whole stage to "
@@ -420,7 +419,7 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           "louder and closer to the centre the nearer you get.",
           kLedgeBoost)),
       m_ledge(add_ledge_values(m_ledge_cue.group)),
-      m_appearance_cue(settings.add_cue(std::string(kAppearanceId), "Appearance cue",
+      m_appearance_cue(settings.add_cue(std::string(kAppearanceId), "Item appearance cue",
           "A chime where an item appears in a match: from you or, with Items relative to you "
           "off, on the stage.",
           kAppearanceBoost)),
@@ -429,7 +428,8 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           "relative to you off, on the stage; it quickens while the item is within reach, where "
           "a press would pick it up.",
           kItemPositionBoost)),
-      m_item_position_values(add_item_position_values(m_item_position_cue.group)) {
+      m_item_position_values(add_item_position_values(m_item_position_cue.group)),
+      m_items(add_item_values(settings.add_shared("item_cues", "Item cues"))) {
     VoiceSpec your =
         position_voice("your position", m_your_cue.values.cue, tick_sound(), kFastestInterval);
     VoiceSpec opponent = position_voice(
