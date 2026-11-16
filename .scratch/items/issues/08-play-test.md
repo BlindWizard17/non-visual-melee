@@ -1,6 +1,6 @@
 # 08 Play test by ear
 
-Status: ready-for-human
+Status: resolved (2026-11-16)
 Type: task
 Blocked by: 07
 
@@ -52,3 +52,7 @@ New for the play test: in the air the item's position cue quickens only for a li
 
 - **Items relative to you** moved after the item cues' rows in Cue settings, the submenu's last row, so it follows the two cues it switches. Its keys in `a11y.ini` are unchanged.
 - **Appearance cue** renamed **Item appearance cue**, with its volume and Preview rows. Its key in `a11y.ini` (`item_appearance`) is unchanged.
+
+### 2026-11-16, play test done
+
+The maintainer play-tested items by ear with their own recorded sounds, which went in with the item appearance cue's boost raised to 2 (df510bc4), and the cues' descriptions no longer name the sounds (38060f46). Besides the two settings findings above, nothing else came up. A match with items at a high frequency, especially with four players, is very hectic, which the maintainer accepts for now as largely the game's own nature.
