@@ -156,10 +156,15 @@ int CueEngine::add_voice(VoiceSpec spec) {
         if (spec.alternates_with != -1) {
             return refuse("a once voice alternates with none");
         }
-    } else if (spec.sound.samples.empty()) {
+    } else if (spec.sound.samples.empty() && spec.copies == nullptr) {
         return refuse("no sound");
     }
     if (spec.copies != nullptr) {
+        /* The copies are the voice's sound: a sound beside them would never
+         * play, and might not even match them. */
+        if (!spec.sound.samples.empty()) {
+            return refuse("a sound and its copies both");
+        }
         if (spec.mode != VoiceMode::pulsed && spec.mode != VoiceMode::one_shot) {
             return refuse("only a pulsed voice or a one-shot plays copies");
         }
@@ -185,7 +190,7 @@ int CueEngine::add_voice(VoiceSpec spec) {
     }
     Voice& v = m_voices[static_cast<size_t>(count)];
     v.spec = std::move(spec);
-    v.samples = &v.spec.sound.samples;
+    take_copy(v, 1.0f);
     write_targets(v, VoiceTargets{});
     v.partner.store(partner, std::memory_order_relaxed);
     /* Publishes the voice whole: the audio thread reads the count first. */

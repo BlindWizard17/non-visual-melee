@@ -844,7 +844,7 @@ int sounding_frames(const std::vector<float>& out, int from, int to) {
  * as long at every pitch, and only the rest of the pitch past the nearest
  * copy changes its length. */
 void a_pulse_with_copies_keeps_its_length() {
-    VoiceSpec spec = pulsed("pitched", constant(0.25f, 2400), 0.05f);
+    VoiceSpec spec = pulsed("pitched", Sound{}, 0.05f);
     spec.lowest_pitch = 0.5f;
     spec.copies = level_copies(2400);
     CueEngine engine;
@@ -878,7 +878,7 @@ void a_pulse_with_copies_keeps_its_length() {
  * is heading for, not the one it has reached: the old one played at the
  * new pitch would last over twice as long. */
 void a_pulse_after_a_jump_takes_its_target_copy() {
-    VoiceSpec spec = pulsed("pitched", constant(0.25f, 2400), 0.05f);
+    VoiceSpec spec = pulsed("pitched", Sound{}, 0.05f);
     spec.lowest_pitch = 0.5f;
     spec.copies = level_copies(2400);
     CueEngine engine;
@@ -902,7 +902,7 @@ void a_pulse_after_a_jump_takes_its_target_copy() {
 /* A one-shot with copies is as long at every pitch; past the copies' span
  * the last copy plays at the rest. */
 void a_one_shot_with_copies_keeps_its_length() {
-    VoiceSpec spec = one_shot("pitched", constant(0.25f, 4800));
+    VoiceSpec spec = one_shot("pitched", Sound{});
     spec.lowest_pitch = 0.5f;
     spec.copies = level_copies(4800);
     CueEngine engine;
@@ -921,21 +921,26 @@ void a_one_shot_with_copies_keeps_its_length() {
     assert(near(out[2 * 1200], 0.5 * kCentredFull, 1e-5));
 }
 
-/* Only a pulsed voice or a one-shot plays copies, every copy has a sound,
- * and the copies a pitch. */
+/* Copies take the place of a sound, never stand beside one; only a pulsed
+ * voice or a one-shot plays them, every copy has a sound, and the copies a
+ * pitch. */
 void copies_are_refused_where_they_cannot_play() {
     CueEngine engine;
-    VoiceSpec hum = looped("hum", constant(0.5f, 480));
-    hum.copies = level_copies(480);
+    VoiceSpec doubled = pulsed("doubled", constant(0.5f, 480), 0.02f);
+    doubled.copies = level_copies(480);
     s_lines.clear();
+    assert(engine.add_voice(doubled) == -1);
+    assert(logged("[a11y] cue doubled refused: a sound and its copies both"));
+    VoiceSpec hum = looped("hum", Sound{});
+    hum.copies = level_copies(480);
     assert(engine.add_voice(hum) == -1);
     assert(logged("[a11y] cue hum refused: only a pulsed voice or a one-shot plays copies"));
-    VoiceSpec tick = pulsed("tick", constant(0.5f, 480), 0.02f);
+    VoiceSpec tick = pulsed("tick", Sound{}, 0.02f);
     tick.copies = a11y::pitched_copies(
         0.5f, 2.0f, [](float pitch) { return pitch == 1.0f ? Sound{} : constant(0.5f, 480); });
     assert(engine.add_voice(tick) == -1);
     assert(logged("[a11y] cue tick refused: an empty copy"));
-    VoiceSpec unpitched = pulsed("unpitched", constant(0.5f, 480), 0.02f);
+    VoiceSpec unpitched = pulsed("unpitched", Sound{}, 0.02f);
     auto copies = std::make_shared<a11y::PitchedCopies>();
     copies->lowest = 0.0f;
     copies->sounds.push_back(constant(0.5f, 480));

@@ -194,12 +194,11 @@ std::shared_ptr<const PitchedCopies> shifted_copies(const Sound& sound) {
 
 /* A position cue's pulsed voice: its copies keep the sound's length at
  * every pitch, so a sound that fits the fastest interval fits it at any. */
-VoiceSpec position_voice(const char* name, int cue, Sound sound,
-    std::shared_ptr<const PitchedCopies> copies, float fastest_interval) {
+VoiceSpec position_voice(const char* name, int cue, std::shared_ptr<const PitchedCopies> copies,
+    float fastest_interval) {
     VoiceSpec voice;
     voice.name = name;
     voice.cue = cue;
-    voice.sound = std::move(sound);
     voice.copies = std::move(copies);
     voice.mode = VoiceMode::pulsed;
     voice.fastest_interval = fastest_interval;
@@ -208,12 +207,11 @@ VoiceSpec position_voice(const char* name, int cue, Sound sound,
 }
 
 /* The appearance cue's one-shot, as long at every pitch. */
-VoiceSpec appearance_voice(int cue, Sound sound) {
+VoiceSpec appearance_voice(int cue, const Sound& sound) {
     VoiceSpec voice;
     voice.name = "item appearance";
     voice.cue = cue;
     voice.copies = shifted_copies(sound);
-    voice.sound = std::move(sound);
     voice.mode = VoiceMode::one_shot;
     voice.lowest_pitch = kRangeLowestPitch;
     return voice;
@@ -457,10 +455,10 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
           kItemPositionBoost)),
       m_item_position_values(add_item_position_values(m_item_position_cue.group)),
       m_items(add_item_values(settings.add_shared("item_cues", "Item cues"))) {
-    VoiceSpec your = position_voice("your position", m_your_cue.values.cue, tick_sound(1.0f),
-        made_copies(tick_sound), kFastestInterval);
+    VoiceSpec your = position_voice(
+        "your position", m_your_cue.values.cue, made_copies(tick_sound), kFastestInterval);
     VoiceSpec opponent = position_voice("opponent position", m_opponent_cue.values.cue,
-        pulse_sound(1.0f), made_copies(pulse_sound), kOpponentFastestInterval);
+        made_copies(pulse_sound), kOpponentFastestInterval);
     VoiceSpec gap;
     gap.name = "gap";
     gap.cue = m_gap_cue.values.cue;
@@ -479,14 +477,12 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
     m_preview_voices.ledge_left = m_engine.add_voice(preview_of(std::move(ledge_left)));
     m_preview_voices.ledge_right = m_engine.add_voice(preview_of(std::move(ledge_right)));
     m_appearance_seconds = sounds.item_appearance.seconds();
-    VoiceSpec appearance =
-        appearance_voice(m_appearance_cue.values.cue, std::move(sounds.item_appearance));
+    VoiceSpec appearance = appearance_voice(m_appearance_cue.values.cue, sounds.item_appearance);
     m_appearance_pool.add(m_engine, appearance);
     m_appearance_preview_pool.add(m_engine, preview_of(std::move(appearance)));
     /* One voice per item tracked, the nearest's named plainly. */
-    std::shared_ptr<const PitchedCopies> item_copies = shifted_copies(sounds.item_position);
     VoiceSpec item = position_voice("item position", m_item_position_cue.values.cue,
-        std::move(sounds.item_position), std::move(item_copies), kItemFastestInterval);
+        shifted_copies(sounds.item_position), kItemFastestInterval);
     for (std::size_t i = 0; i < m_item_position_voices.size(); i++) {
         VoiceSpec spec = item;
         if (i > 0) {

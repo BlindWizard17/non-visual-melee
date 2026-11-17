@@ -83,12 +83,14 @@ struct VoiceTargets {
 struct VoiceSpec {
     std::string name; /* in log and trace lines: "ledge right" */
     int cue = 0;      /* the cue whose level it takes, 0 to kMaxCues - 1 */
-    Sound sound;      /* none for a once voice */
+    /* The voice's sound, played at its pitch as its playback rate; none for
+     * a once voice, or for a voice with copies. */
+    Sound sound;
     VoiceMode mode = VoiceMode::looped;
-    /* A pulsed voice's or a one-shot's sound at other pitches, shared with
-     * the voices that play the same sound. Each pulse or play takes the
-     * copy nearest its target pitch, and keeps it while its pitch glides. None: the sound itself at
-     * the pitch as its playback rate. */
+    /* A pulsed voice's or a one-shot's sound as copies at many pitches, in
+     * place of the sound, shared with the voices that play the same sound.
+     * Each pulse or play takes the copy nearest its target pitch, and keeps
+     * it while its pitch glides. */
     std::shared_ptr<const PitchedCopies> copies;
     /* Targets are held to these. A pulsed voice's sound longer than its
      * interval, at its pitch, is cut by the next pulse. */
@@ -275,8 +277,8 @@ private:
     void render_one_shot(Voice& v, float chain, float* out, int frames);
     /* The tail's next frame, at its fade times level, added into frame. */
     static void add_tail(Tail& tail, float level, float* frame);
-    /* A play's start: the copy nearest the target pitch, or the sound
-     * itself. */
+    /* A play's start: the copy nearest the target pitch, or the voice's
+     * sound when it has no copies. */
     static void take_copy(Voice& v, float pitch);
     /* The play cut where it is, as a tail at the given level. */
     static Tail cut(const Voice& v, float level);
