@@ -207,11 +207,11 @@ VoiceSpec position_voice(const char* name, int cue, std::shared_ptr<const Pitche
 }
 
 /* The appearance cue's one-shot, as long at every pitch. */
-VoiceSpec appearance_voice(int cue, const Sound& sound) {
+VoiceSpec appearance_voice(int cue, std::shared_ptr<const PitchedCopies> copies) {
     VoiceSpec voice;
     voice.name = "item appearance";
     voice.cue = cue;
-    voice.copies = shifted_copies(sound);
+    voice.copies = std::move(copies);
     voice.mode = VoiceMode::one_shot;
     voice.lowest_pitch = kRangeLowestPitch;
     return voice;
@@ -477,7 +477,8 @@ MatchCues::MatchCues(CueSettings& settings, CueEngine& engine, MatchCueSounds so
     m_preview_voices.ledge_left = m_engine.add_voice(preview_of(std::move(ledge_left)));
     m_preview_voices.ledge_right = m_engine.add_voice(preview_of(std::move(ledge_right)));
     m_appearance_seconds = sounds.item_appearance.seconds();
-    VoiceSpec appearance = appearance_voice(m_appearance_cue.values.cue, sounds.item_appearance);
+    VoiceSpec appearance =
+        appearance_voice(m_appearance_cue.values.cue, shifted_copies(sounds.item_appearance));
     m_appearance_pool.add(m_engine, appearance);
     m_appearance_preview_pool.add(m_engine, preview_of(std::move(appearance)));
     /* One voice per item tracked, the nearest's named plainly. */

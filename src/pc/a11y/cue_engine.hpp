@@ -262,7 +262,8 @@ private:
         float pitch_now = 1.0f;
         float gain_now = 0.0f; /* the whole chain, glided */
         /* The sound, or the copy the play took, and the copy's pitch: it
-         * plays at pitch_now / copy_pitch. */
+         * plays at pitch_now / copy_pitch. add_voice sets them first, before
+         * it publishes the voice. */
         const std::vector<float>* samples = nullptr;
         float copy_pitch = 1.0f;
         Tail tail;
