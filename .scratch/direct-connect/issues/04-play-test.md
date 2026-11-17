@@ -1,6 +1,6 @@
 # 04 Play test: Direct Connect with a friend
 
-Status: ready-for-human
+Status: resolved (2026-11-17)
 Type: task
 Blocked by: 02, 03
 
@@ -32,3 +32,17 @@ For the maintainer to decide, most severe first:
 - Y on the hub says nothing after the keyboard's error: B back from the keyboard leaves "A code has 8 characters after the #" under the list (the base port does not clear it), and the error takes the line before "Your code is copied - send it to a friend", so the copy changes nothing on screen. Options: a one-line base port fix clearing `direct_error` as the keyboard is left (`directEntryFrame`, `src/melee/gm/gmonlinemode.c`), in its own commit, unmarked as it helps every player; or leave it. Recommended: the base port fix.
 - `WaitStatus` is meant for Unranked's search too, but its rhythm leaves out 0:45 for Direct Connect's "isn't answering yet" change, which Unranked does not have. Recommended: pass the moments in when Unranked's feature reuses it, not before.
 - `CLAUDE.local.md`'s base port worktree note says to rerun `run_level.py online --base-b` after a base merge; the two-copy Direct Connect runs it leaves out are now a step of the `verify` skill's base merge level, by hand with the settings folder's cleanup. Recommended: add them to the note (a private file, left to you).
+
+### 2026-11-17: the play test
+
+On 2026-11-16 the maintainer, on Windows, played a sighted friend over the internet by Direct Connect. The friend ran a Mac build of the fork with accessibility off. The calls, character select, stage select, matches, results and the way back to the hub worked, and nothing heard needed a change. The maintainer resolved this issue: the rest gets polished as players report it.
+
+What the logs of both machines show:
+
+- **The games stayed in step.** No desync was reported. The Mac rolled back 673 times in the first session, never more than 8 frames, and none failed.
+- **Short latency spikes.** Ping was usually 7–10 ms, with spikes to 200–500 ms that both machines saw at the same moments, and one wait of almost half a second. That is the connection itself, possibly Wi-Fi on one side.
+- **Speech during a rollback went unexercised.** The Windows host ran about two frames ahead, so it waited briefly for the Mac's inputs about 4,100 times in the first session and never rolled back. The Mac, which did all the rolling back, had accessibility off. So the speech gate on re-run frames (`pc_net_resim()`) wasn't heard in this test. A session with the maintainer as the guest would cover it.
+- **Calls one way only.** Every call from the friend to the maintainer failed. Calls the other way worked. The cause looks like crawler nodes around the maintainer's doorbell key in the DHT: issue 05.
+
+Not judged separately in this test, and left for player feedback: the review's points in the comment above (a reminder right after a change, the buttons after a failure, the waiting player not hearing who called, Y after the keyboard's error).
+
