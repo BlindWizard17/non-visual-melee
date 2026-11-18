@@ -63,7 +63,7 @@ MENUS = ["rules_switches", "tree_walk", "css_rules", "css_setup", "rules_screens
          "results_teams", "training_menu", "launcher_home",
          "launcher_settings", "launcher_a11y", "launcher_voices", "port_menu", "port_menu_a11y",
          "port_menu_voices", "direct_hub", "memcard_no", "memcard_no_card", "memcard_corrupted",
-         "unlock_notices", "challenger"]
+         "unlock_notices", "challenger", "language"]
 # drive.py options a script needs: the launcher's scripts open the launcher,
 # with accessibility on but muted, since its line reading needs the switch on,
 # as the port menu's does.
@@ -189,6 +189,10 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
                          (re.compile(r"\[a11y\] cue item position stop "), 2),
                          # The first Food's pickup, the second left lying.
                          (re.compile(r'\[a11y\] voice yours[^:]*: "Food"$'), 1)],
+         # Options' opening on Language once, the return by B: A on the
+         # language in use reloads nothing, and each reload says the change
+         # first.
+         "language": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "Options\. Language\. '), 1)],
          # The save brings Jigglypuff, named once.
          "challenger": [(re.compile(r'\[a11y\] speak .*A new foe has appeared: Jigglypuff\. A to fight\."$'), 1)]}
 

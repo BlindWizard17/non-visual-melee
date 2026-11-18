@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "menu_speech.hpp"
+#include "menu_kinds.h"
 #include "menu_names.hpp"
 #include "sentences.hpp"
 #include <optional>
@@ -7,6 +8,12 @@
 
 namespace a11y {
 namespace {
+
+enum class MenuKind : int {
+#define A11Y_MENU_KIND_ENUMERATOR(name, number) name = number,
+    A11Y_MENU_KINDS(A11Y_MENU_KIND_ENUMERATOR)
+#undef A11Y_MENU_KIND_ENUMERATOR
+};
 
 /* A tree screen's hovered entry, as log lines name it. */
 std::string entry_where(const A11yMenuState& state) {
@@ -54,6 +61,24 @@ std::string capitalised(std::string text) {
 }  // namespace
 
 void MenuSpeech::frame(const A11yMenuState& state) {
+    /* Read every frame, so the first after the change says it. */
+    std::string out = m_language.change(state);
+    add_sentence(out, said(state));
+    if (!out.empty()) {
+        m_speech.announce(out, Mode::interrupt);
+    }
+}
+
+LeafReader* MenuSpeech::leaf_reader(int menu) {
+    switch (static_cast<MenuKind>(menu)) {
+    case MenuKind::MENU_KIND_SETTINGS_LANG:
+        return &m_language;
+    default:
+        return nullptr;
+    }
+}
+
+std::string MenuSpeech::said(const A11yMenuState& state) {
     bool arrived = !m_seen || state.menu != m_menu;
     const Reader* reader = menu_reader(state.menu);
     bool returned = arrived && m_seen && reader != nullptr && reader->opens(m_menu);
@@ -72,31 +97,40 @@ void MenuSpeech::frame(const A11yMenuState& state) {
     m_row = key;
     m_value = value;
     if (arrived) {
-        m_speech.announce(opening(state, returned), Mode::interrupt);
-    } else if (moved) {
-        m_speech.announce(hovered_entry(state), Mode::interrupt);
-    } else if (row_changed) {
+        return opening(state, returned);
+    }
+    if (LeafReader* leaf = leaf_reader(state.menu)) {
+        return leaf->frame(state);
+    }
+    if (moved) {
+        return hovered_entry(state);
+    }
+    if (row_changed) {
         std::string out = row_reached(state);
         if (reader->described) {
             add_sentence(out, row_description(state));
         }
-        m_speech.announce(out, Mode::interrupt);
-    } else if (value_changed) {
+        return out;
+    }
+    if (value_changed) {
         std::string out = capitalised(*value);
         if (reader_row(state)->described_per_value) {
             add_sentence(out, row_description(state));
         }
-        m_speech.announce(out, Mode::interrupt);
-    } else if (refused) {
-        m_speech.announce(std::string(reader->refused), Mode::interrupt);
+        return out;
     }
+    if (refused) {
+        return std::string(reader->refused);
+    }
+    return "";
 }
 
 std::string MenuSpeech::opening(const A11yMenuState& state, bool returned) {
     std::optional<std::string_view> name = menu_screen_name(state.menu);
     std::string out;
     if (!name) {
-        m_log_once("[a11y] menu " + std::to_string(state.menu) + ": not in the menu names table");
+        m_text.log_once(
+            "[a11y] menu " + std::to_string(state.menu) + ": not in the menu names table");
         return "Unknown screen " + std::to_string(state.menu);
     }
     add_sentence(out, *name);
@@ -110,6 +144,8 @@ std::string MenuSpeech::opening(const A11yMenuState& state, bool returned) {
         if (reader->described) {
             add_sentence(out, row_description(state));
         }
+    } else if (LeafReader* leaf = leaf_reader(state.menu)) {
+        add_sentence(out, leaf->opening(state));
     } else {
         add_sentence(out, "No speech yet.");
     }
@@ -123,10 +159,11 @@ std::string MenuSpeech::hovered_entry(const A11yMenuState& state) {
     } else if (std::optional<std::string_view> name = menu_entry_name(state.menu, state.hovered)) {
         add_sentence(out, *name);
     } else {
-        m_log_once(entry_where(state) + ": not in the menu names table");
+        m_text.log_once(entry_where(state) + ": not in the menu names table");
         add_sentence(out, "Unknown entry " + std::to_string(state.hovered));
     }
-    add_sentence(out, description(state.pc_description, state.description, entry_where(state)));
+    add_sentence(
+        out, description(state.pc_description, state.description, state, entry_where(state)));
     return out;
 }
 
@@ -144,7 +181,7 @@ std::string MenuSpeech::row(const A11yMenuState& state) {
     if (const ReaderRow* named = reader_row(state)) {
         out = named->spoken_name();
     } else {
-        m_log_once(row_where(state) + ": not in the menu names table");
+        m_text.log_once(row_where(state) + ": not in the menu names table");
         const Reader* reader = menu_reader(state.menu);
         out = "Unknown row " + std::to_string(reader != nullptr ? row_key(*reader, state) : -1);
     }
@@ -204,7 +241,7 @@ std::string MenuSpeech::known(
     if (word) {
         return std::string(*word);
     }
-    m_log_once(
+    m_text.log_once(
         row_where(state) + ": value " + std::to_string(number) + " not in the menu names table");
     return std::to_string(number);
 }
@@ -214,19 +251,15 @@ std::string MenuSpeech::row_description(const A11yMenuState& state) {
     const std::uint8_t* text = reader != nullptr && reader->key == RowKey::hovered ?
                                    state.description :
                                    state.center_text_string;
-    return description(nullptr, text, row_where(state));
+    return description(nullptr, text, state, row_where(state));
 }
 
-std::string MenuSpeech::description(
-    const char* plain, const std::uint8_t* game_text, const std::string& where) {
+std::string MenuSpeech::description(const char* plain, const std::uint8_t* game_text,
+    const A11yMenuState& state, const std::string& where) {
     if (plain != nullptr) {
         return spoken_text(plain);
     }
-    if (game_text == nullptr) {
-        m_log_once(where + ": no description");
-        return "";
-    }
-    return spoken_game_text(game_text, m_text, m_log_once, where + ": description");
+    return m_text.description(game_text, state, where);
 }
 
 }  // namespace a11y

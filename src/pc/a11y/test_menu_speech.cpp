@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Menu speech against a fake screen reader bridge, fed snapshots of the main
- * menu tree written by hand. Links menu_speech.cpp, menu_names.cpp,
- * game_text.cpp and speech.cpp only, so this file supplies the pc_log_line
- * that main.c normally provides. */
+ * menu tree written by hand, the leaf screens with readers of their own
+ * (Language) included. Links menu_speech.cpp, its leaf readers,
+ * menu_names.cpp and the names tables it uses, game_text.cpp and speech.cpp
+ * only, so this file supplies the pc_log_line that main.c normally
+ * provides. */
 #include "menu_names.hpp"
 #include "menu_speech.hpp"
 #include "speech.hpp"
@@ -55,6 +57,7 @@ constexpr int kRandomStage = 17;
 constexpr int kRumble = 19;
 constexpr int kSound = 20;
 constexpr int kDisplay = 21;
+constexpr int kLanguage = 23;
 constexpr int kMultiMan = 33;
 constexpr int kOnline = 34;
 
@@ -66,6 +69,9 @@ constexpr int k10Man = 171;
 constexpr int k100Man = 172;
 constexpr int k3Minute = 173;
 constexpr int kCruel = 176;
+constexpr int kLanguageCentreText = 0xBF;
+constexpr const char* kLanguageText = "Choose a language and press\nthe A Button to confirm.";
+constexpr const char* kLanguageEntryText = "Select language display.";
 constexpr const char* kChannelText = "Choose between Stereo\nand Mono sound.";
 constexpr const char* kVolumeText = "Adjust music and sound\neffect volume balance.";
 constexpr const char* kDeflickerText =
@@ -206,13 +212,27 @@ struct Fixture {
     }
 
     /* One frame on a screen and entry; the entry's description is the game
-     * text of description, if any. */
-    void frame(int menu, int hovered, const char* description = nullptr) {
+     * text of description, if any. japanese: the game's saved language. */
+    void frame(int menu, int hovered, const char* description = nullptr, bool japanese = false) {
         Bytes bytes = description != nullptr ? game_text(description) : Bytes{};
         A11yMenuState state{};
         state.menu = menu;
         state.hovered = hovered;
         state.description = description != nullptr ? bytes.data() : nullptr;
+        state.language_japanese = japanese;
+        this->menu.frame(state);
+    }
+
+    /* One frame on Language: the cursor on Japanese or English, the game's
+     * saved language, and the centre text the screen set as it opened. */
+    void language_frame(bool cursor_japanese, bool japanese, const char* text = kLanguageText) {
+        Bytes bytes = text != nullptr ? game_text(text) : Bytes{};
+        A11yMenuState state{};
+        state.menu = kLanguage;
+        state.center_text = kLanguageCentreText;
+        state.center_text_string = text != nullptr ? bytes.data() : nullptr;
+        state.language_cursor_japanese = cursor_japanese;
+        state.language_japanese = japanese;
         this->menu.frame(state);
     }
 
@@ -943,6 +963,89 @@ void random_stage_toggles_and_refuses() {
                               "At least one stage must stay on."}));
 }
 
+void language_opens_on_the_language_in_use() {
+    Fixture f;
+    f.frame(kSettings, 4, kLanguageEntryText);
+    f.spoken();
+    f.language_frame(false, false);
+    assert((f.spoken() == Texts{"Language. English. Left and right to choose. Choose a language "
+                                "and press the A Button to confirm."}));
+}
+
+void language_moves_both_ways_and_warns_on_japanese() {
+    Fixture f;
+    f.language_frame(false, false);
+    f.spoken();
+    f.language_frame(true, false);
+    f.language_frame(false, false);
+    f.language_frame(true, false);
+    assert((f.spoken() == Texts{"Japanese. The game's own text will be in Japanese.", "English",
+                              "Japanese. The game's own text will be in Japanese."}));
+}
+
+void a_on_the_language_in_use_says_nothing() {
+    Fixture f;
+    f.language_frame(false, false);
+    f.spoken();
+    /* A on English, in use: the screen stays as it is. */
+    f.language_frame(false, false);
+    f.language_frame(false, false);
+    assert(f.spoken().empty());
+}
+
+void language_change_is_said_before_the_options_opening() {
+    Fixture f;
+    f.language_frame(false, false);
+    f.language_frame(true, false);
+    f.spoken();
+    /* A on Japanese reloads the menu scene on Options, Language hovered,
+     * its description now from the Japanese table. */
+    f.menu.forget();
+    f.frame(kSettings, 4, "Japanese text", true);
+    f.frame(kSettings, 4, "Japanese text", true);
+    assert((f.spoken() == Texts{"Language changed to Japanese. Options. Language. Japanese text"}));
+}
+
+void language_in_japanese_opens_without_the_warning_and_changes_back() {
+    Fixture f;
+    f.frame(kSettings, 4, "Japanese text", true);
+    f.spoken();
+    f.language_frame(true, true, "Japanese bottom line");
+    f.language_frame(false, true, "Japanese bottom line");
+    f.language_frame(true, true, "Japanese bottom line");
+    f.language_frame(false, true, "Japanese bottom line");
+    f.menu.forget();
+    f.frame(kSettings, 4, kLanguageEntryText, false);
+    assert(
+        (f.spoken() == Texts{"Language. Japanese. Left and right to choose. Japanese bottom line",
+                           "English", "Japanese", "English",
+                           "Language changed to English. Options. Language. Select language "
+                           "display."}));
+}
+
+void the_first_frame_in_japanese_is_no_change() {
+    Fixture f;
+    f.frame(kMain, 3, "Japanese text", true);
+    assert((f.spoken() == Texts{"Main Menu. Options. Japanese text"}));
+}
+
+void japanese_text_has_no_font_glyphs_of_the_english_table() {
+    Fixture f;
+    /* The Japanese table's own font glyphs are kanji the fork cannot name;
+     * 0x4000 and 0x4002 are the English table's é and II. */
+    f.frame(kMain, 2, "Pok@mon #", true);
+    assert((f.spoken() == Texts{"Main Menu. Trophies. Pokmon"}));
+    assert(count_logged("[a11y] menu 0 entry 2: description \"Pok{glyph 4000}mon {glyph 4002}\", "
+                        "unknown glyphs left out") == 1);
+}
+
+void language_without_its_centre_text_is_logged() {
+    Fixture f;
+    f.language_frame(false, false, nullptr);
+    assert((f.spoken() == Texts{"Language. English. Left and right to choose."}));
+    assert(count_logged("[a11y] menu 23 centre text 191: no description") == 1);
+}
+
 void plain_capitals_keeps_abbreviations() {
     assert(a11y::plain_capitals("DIRECT CONNECT") == "Direct connect");
     assert(a11y::plain_capitals("LAN PLAY") == "LAN play");
@@ -1012,6 +1115,14 @@ int main() {
     random_stage_opens_from_additional_rules();
     random_stage_names_every_row();
     random_stage_toggles_and_refuses();
+    language_opens_on_the_language_in_use();
+    language_moves_both_ways_and_warns_on_japanese();
+    a_on_the_language_in_use_says_nothing();
+    language_change_is_said_before_the_options_opening();
+    language_in_japanese_opens_without_the_warning_and_changes_back();
+    the_first_frame_in_japanese_is_no_change();
+    japanese_text_has_no_font_glyphs_of_the_english_table();
+    language_without_its_centre_text_is_logged();
     plain_capitals_keeps_abbreviations();
     std::cout << "menu_speech: all tests passed\n";
     return 0;

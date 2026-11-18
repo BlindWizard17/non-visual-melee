@@ -83,6 +83,11 @@ float s_master_volume = 1.0f;
 int s_center_text = -1;
 /* Random Stage refused a toggle since the last menu frame. */
 bool s_stage_switch_refused = false;
+/* Language's cursor as its frame hook reported it since the last menu frame,
+ * or -1. The screen's frame runs after the menu frame, so each menu frame
+ * takes the report of the frame before; once the screen is gone none comes,
+ * and a new visit starts unreported. */
+int s_language_cursor = -1;
 /* The scene entered last, and character select's pending exit on its last
  * frame, recorded even while rollback re-runs frames: the frame where a
  * back-out shows may be a re-run. They tell the lobby how it was reached. */
@@ -208,12 +213,20 @@ bool take_stage_switch_refused() {
     return refused;
 }
 
+/* Taken by the next frame read even while silent, like a refusal, so a
+ * report never outlives its visit. */
+int take_language_cursor() {
+    int cursor = s_language_cursor;
+    s_language_cursor = -1;
+    return cursor;
+}
+
 /* The menu reader's frame: the main menu tree's, or the rules screens'
  * inside character select, which set no centre text (-1); the main menu's
  * last one would be looked up in character select's string table. */
-void feed_menu_speech(int center_text, bool refused) {
+void feed_menu_speech(int center_text, bool refused, int language_cursor = -1) {
     A11yMenuState state;
-    a11y_game_menu_state(center_text, &state);
+    a11y_game_menu_state(center_text, language_cursor, &state);
     state.refused = refused;
     s_menu_speech->frame(state);
 }
@@ -525,10 +538,15 @@ extern "C" void pc_a11y_master_volume(float volume) {
 extern "C" void pc_a11y_menu_frame(void) {
     a11y::menu_text_dump_once();
     bool refused = take_stage_switch_refused();
+    int language_cursor = take_language_cursor();
     if (!game_hook_may_speak()) {
         return;
     }
-    feed_menu_speech(s_center_text, refused);
+    feed_menu_speech(s_center_text, refused, language_cursor);
+}
+
+extern "C" void pc_a11y_language_frame(int cursor) {
+    s_language_cursor = cursor;
 }
 
 extern "C" void pc_a11y_stage_switch_refused(void) {

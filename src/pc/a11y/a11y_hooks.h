@@ -102,6 +102,12 @@ void pc_a11y_menu_frame(void);
  * which those screens keep in private state. The next menu frame reads it. */
 void pc_a11y_menu_center_text(int string_number);
 
+/* Once a frame while Language is up (mnLanguage_8024BFE0 in
+ * src/melee/mn/mnlanguage.c, before its cooldown check, so even while it
+ * ignores input). cursor is the screen's cursor, 0 Japanese and 1 English,
+ * kept in state static to that file. The next menu frame reads it. */
+void pc_a11y_language_frame(int cursor);
+
 /* Random Stage refused to turn off the last stage that was on and played the
  * refused sound (fn_80235F80 in src/melee/mn/mnstagesw.c); nothing in the
  * screen's state records it. The next menu frame reads it. */

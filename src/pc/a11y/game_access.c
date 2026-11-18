@@ -38,6 +38,7 @@
 #include <melee/it/item.h>
 #include <melee/it/types.h>
 #include <melee/lb/lb_00B0.h>
+#include <melee/lb/lblanguage.h>
 #include <melee/lb/lbspdisplay.h>
 #include <melee/mn/forward.h>
 #include <melee/mn/mnmain.h>
@@ -241,7 +242,7 @@ static const uint8_t* additional_rules_description(int row, const GameRules* rul
     return menu_string(mn_803ED2E8.desc[row][value]);
 }
 
-void a11y_game_menu_state(int center_text, A11yMenuState* out) {
+void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* out) {
     MenuKind menu = (MenuKind)mn_804A04F0.cur_menu;
     int hovered = mn_804A04F0.hovered_selection;
 
@@ -261,6 +262,11 @@ void a11y_game_menu_state(int center_text, A11yMenuState* out) {
     rules_state(&out->rules);
     out->confirmed = mn_804A04F0.confirmed_selection;
     out->refused = false;
+    /* Language opens with its cursor on the saved language
+     * (mnLanguage_8024C3C4). */
+    out->language_japanese = lbLang_GetSavedLanguage() == LANG_JP;
+    out->language_cursor_japanese =
+        language_cursor >= 0 ? language_cursor == LANG_JP : out->language_japanese;
     /* The same precedence as mn_80229A7C, which draws the description line:
      * the base port's text first, then SdMenu's by the table's number. */
     if (out->pc_description != NULL || (int)menu >= A11Y_MENU_TABLE_LEN) {

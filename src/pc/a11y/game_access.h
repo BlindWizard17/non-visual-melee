@@ -103,11 +103,23 @@ typedef struct A11yMenuState {
      * last snapshot (pc_a11y_stage_switch_refused). Set by the caller, not
      * read from the screen. */
     bool refused;
+    /* The game's language as saved (lbLang_GetSavedLanguage): Japanese, or
+     * English. Language changes it and reloads the menu scene, whose text is
+     * Japanese from then on while it is. */
+    bool language_japanese;
+    /* Language's cursor (mnlanguage.c) on Japanese, or on English. Its state
+     * is static to its file, so its frame hook reports it
+     * (pc_a11y_language_frame); before the screen's first report the cursor
+     * is where the screen opens it, on the saved language. Meaningless on
+     * other screens. */
+    bool language_cursor_japanese;
 } A11yMenuState;
 
 /* Fills the snapshot from game memory, refused left false; center_text is
- * the number the hook last passed, or -1. */
-void a11y_game_menu_state(int center_text, A11yMenuState* out);
+ * the number the hook last passed, or -1; language_cursor is Language's
+ * cursor as its frame hook reported it on the frame before (0 Japanese, 1
+ * English), or -1 for no report. */
+void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* out);
 
 /* Character select: four player slots and 25 portraits. */
 enum { A11Y_CSS_SLOTS = 4, A11Y_CSS_PORTRAITS = 25 };

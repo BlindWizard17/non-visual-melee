@@ -10,14 +10,18 @@
  * Random Stage draw no description; a row with a hint of its own (the item
  * frequency) says it the first time it is reached after the screen opens,
  * and a refused change (Random Stage's last stage) says why. Coming back
- * from a screen a row opens is an opening without the hint. Any other leaf
- * screen opening says its name and "No speech yet."
- * (.scratch/main-menu-tree/spec.md, .scratch/rules-screens/spec.md). It
- * compares each snapshot with the previous one and touches no game state
- * itself. */
+ * from a screen a row opens is an opening without the hint. Language keeps
+ * its state to itself and has a reader of its own (leaf_reader.hpp), and the
+ * language changing is said before the next opening. Any other leaf screen
+ * opening says its name and "No speech yet."
+ * (.scratch/main-menu-tree/spec.md, .scratch/rules-screens/spec.md,
+ * .scratch/options-screens/spec.md). It compares each snapshot with the
+ * previous one and touches no game state itself. */
 #pragma once
 #include "game_access.h"
 #include "game_text.hpp"
+#include "language_reader.hpp"
+#include "leaf_reader.hpp"
 #include "speech.hpp"
 #include <cstdint>
 #include <optional>
@@ -30,10 +34,8 @@ namespace a11y {
 class MenuSpeech {
 public:
     /* speech must outlive this; text decodes the descriptions' game text,
-     * the menu font's own glyphs added. */
-    MenuSpeech(Speech& speech, GameTextSource text) : m_speech(speech), m_text(text) {
-        m_text.font_glyphs = menu_font_glyphs();
-    }
+     * the menu font's own glyphs added while the game is in English. */
+    MenuSpeech(Speech& speech, GameTextSource text) : m_speech(speech), m_text(text) {}
 
     /* A scene was entered: the next snapshot is an arrival, spoken as the
      * screen opening even when it matches the last one seen. */
@@ -44,6 +46,11 @@ public:
     void frame(const A11yMenuState& state);
 
 private:
+    /* What the frame says, the language change aside. */
+    std::string said(const A11yMenuState& state);
+    /* The reader of a leaf screen that keeps its state to itself; nothing
+     * for any other screen. */
+    LeafReader* leaf_reader(int menu);
     /* returned: back from a screen one of its rows opens. */
     std::string opening(const A11yMenuState& state, bool returned);
     std::string hovered_entry(const A11yMenuState& state);
@@ -62,11 +69,12 @@ private:
     std::string row_description(const A11yMenuState& state);
     /* A description as one spoken line, from the base port's plain text or
      * from game text; where names it in log lines. */
-    std::string description(
-        const char* plain, const std::uint8_t* game_text, const std::string& where);
+    std::string description(const char* plain, const std::uint8_t* game_text,
+        const A11yMenuState& state, const std::string& where);
 
     Speech& m_speech;
-    GameTextSource m_text;
+    MenuText m_text;
+    LanguageReader m_language{m_text};
     bool m_seen = false;
     int m_menu = 0;
     int m_hovered = 0;
@@ -75,7 +83,6 @@ private:
     std::optional<std::string> m_value;
     /* The rows' own hints said since the screen opened. */
     std::set<std::string_view> m_row_hints;
-    LogOnce m_log_once;
 };
 
 }  // namespace a11y

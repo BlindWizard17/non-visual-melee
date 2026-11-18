@@ -40,6 +40,10 @@ included.
 - **The game's menus.** The main menu and the menus under it, such as 1P Mode
   and VS. Mode, say each screen's name, the option you are on and the game's
   description of it.
+  - **Options.** Sound, Screen Display and Language are read. Switching the
+    game to Japanese makes the game's own text Japanese, such as the menus'
+    descriptions, and speech can read it only in part; Non-Visual Melee's own
+    words stay English.
 - **Character select and stage select.** On these screens the game has you move
   a free cursor around the screen rather than step through a list. Here the
   D-pad steps the cursor from one thing on the screen to the next, saying where
