@@ -63,7 +63,7 @@ MENUS = ["rules_switches", "tree_walk", "css_rules", "css_setup", "rules_screens
          "results_teams", "training_menu", "launcher_home",
          "launcher_settings", "launcher_a11y", "launcher_voices", "port_menu", "port_menu_a11y",
          "port_menu_voices", "direct_hub", "memcard_no", "memcard_no_card", "memcard_corrupted",
-         "unlock_notices", "challenger", "language"]
+         "unlock_notices", "challenger", "language", "erase_data"]
 # drive.py options a script needs: the launcher's scripts open the launcher,
 # with accessibility on but muted, since its line reading needs the switch on,
 # as the port menu's does.
@@ -193,6 +193,8 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
          # language in use reloads nothing, and each reload says the change
          # first.
          "language": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "Options\. Language\. '), 1)],
+         # Five prompt openings; A on the erased row opens none.
+         "erase_data": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "Erase\? No'), 5)],
          # The save brings Jigglypuff, named once.
          "challenger": [(re.compile(r'\[a11y\] speak .*A new foe has appeared: Jigglypuff\. A to fight\."$'), 1)]}
 

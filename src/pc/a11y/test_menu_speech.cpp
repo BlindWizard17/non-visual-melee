@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Menu speech against a fake screen reader bridge, fed snapshots of the main
  * menu tree written by hand, the leaf screens with readers of their own
- * (Language) included. Links menu_speech.cpp, its leaf readers,
+ * (Language, Erase Data) included. Links menu_speech.cpp, its leaf readers,
  * menu_names.cpp and the names tables it uses, game_text.cpp and speech.cpp
  * only, so this file supplies the pc_log_line that main.c normally
  * provides. */
@@ -9,6 +9,7 @@
 #include "menu_speech.hpp"
 #include "speech.hpp"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdarg>
 #include <cstdint>
@@ -58,6 +59,7 @@ constexpr int kRumble = 19;
 constexpr int kSound = 20;
 constexpr int kDisplay = 21;
 constexpr int kLanguage = 23;
+constexpr int kEraseData = 24;
 constexpr int kMultiMan = 33;
 constexpr int kOnline = 34;
 
@@ -72,6 +74,20 @@ constexpr int kCruel = 176;
 constexpr int kLanguageCentreText = 0xBF;
 constexpr const char* kLanguageText = "Choose a language and press\nthe A Button to confirm.";
 constexpr const char* kLanguageEntryText = "Select language display.";
+constexpr const char* kEraseDataEntryText = "Erase melee records, etc.";
+
+/* Erase Data's descriptions by row, and its prompts. */
+constexpr std::array<const char*, A11Y_ERASE_ROWS> kEraseTexts = {
+    "Erase data which unlocked\nhidden characters.",
+    "Erase data which unlocked\nhidden stages.",
+    "Erase the 1-P Mode data.",
+    "Erase the VS. Mode melee scores.",
+    "Erase trophy collection data.",
+    "Erase all game data.",
+};
+constexpr const char* kErasePromptText = "Erase?";
+constexpr const char* kEraseSureText = "Are you sure?";
+using Erased = std::array<bool, A11Y_ERASE_ROWS>;
 constexpr const char* kChannelText = "Choose between Stereo\nand Mono sound.";
 constexpr const char* kVolumeText = "Adjust music and sound\neffect volume balance.";
 constexpr const char* kDeflickerText =
@@ -233,6 +249,31 @@ struct Fixture {
         state.center_text_string = text != nullptr ? bytes.data() : nullptr;
         state.language_cursor_japanese = cursor_japanese;
         state.language_japanese = japanese;
+        this->menu.frame(state);
+    }
+
+    /* One frame on Erase Data: the row, the prompt up (0 none, 1 "Erase?",
+     * 2 "Are you sure?") and its choice, and the rows erased this visit. The
+     * row's description and the prompt's text come from the game unless
+     * texts is false. */
+    void erase_frame(
+        int row, int prompt = 0, bool yes = false, const Erased& erased = {}, bool texts = true) {
+        bool known = row >= 0 && row < A11Y_ERASE_ROWS;
+        Bytes description =
+            known && texts ? game_text(kEraseTexts[static_cast<std::size_t>(row)]) : Bytes{};
+        Bytes prompt_text = prompt != 0 && texts ?
+                                game_text(prompt == 1 ? kErasePromptText : kEraseSureText) :
+                                Bytes{};
+        A11yMenuState state{};
+        state.menu = kEraseData;
+        state.erase.row = row;
+        state.erase.prompt = prompt;
+        state.erase.yes = yes;
+        for (std::size_t i = 0; i < erased.size(); i++) {
+            state.erase.erased[i] = erased[i];
+        }
+        state.erase.description = description.empty() ? nullptr : description.data();
+        state.erase.prompt_text = prompt_text.empty() ? nullptr : prompt_text.data();
         this->menu.frame(state);
     }
 
@@ -1046,6 +1087,167 @@ void language_without_its_centre_text_is_logged() {
     assert(count_logged("[a11y] menu 23 centre text 191: no description") == 1);
 }
 
+constexpr const char* kEraseKeys = "Up and down to move, A to erase.";
+constexpr const char* kPromptKeys = "Left and right to choose, A to confirm.";
+
+void erase_data_opens_on_hidden_characters() {
+    Fixture f;
+    f.frame(kSettings, 5, kEraseDataEntryText);
+    f.spoken();
+    f.erase_frame(0);
+    assert((f.spoken() == Texts{"Erase Data. Hidden Characters. Up and down to move, A to "
+                                "erase. Erase data which unlocked hidden characters."}));
+}
+
+void erase_data_rows_move_and_wrap() {
+    Fixture f;
+    f.erase_frame(0);
+    f.spoken();
+    f.erase_frame(5);
+    f.erase_frame(0);
+    f.erase_frame(1);
+    f.erase_frame(1);
+    assert((f.spoken() == Texts{"Erase All. Erase all game data.",
+                              "Hidden Characters. Erase data which unlocked hidden characters.",
+                              "Hidden Stages. Erase data which unlocked hidden stages."}));
+}
+
+void erase_data_names_every_row() {
+    Fixture f;
+    f.erase_frame(5);
+    f.spoken();
+    for (int row = 0; row < A11Y_ERASE_ROWS; row++) {
+        f.erase_frame(row);
+    }
+    assert((f.spoken() == Texts{"Hidden Characters. Erase data which unlocked hidden characters.",
+                              "Hidden Stages. Erase data which unlocked hidden stages.",
+                              "1-P High Score. Erase the 1-P Mode data.",
+                              "VS. Mode Scores. Erase the VS. Mode melee scores.",
+                              "Trophy Collection. Erase trophy collection data.",
+                              "Erase All. Erase all game data."}));
+}
+
+void erase_data_prompt_opens_on_no_and_switches() {
+    Fixture f;
+    f.erase_frame(1);
+    f.spoken();
+    f.erase_frame(1, 1, false);
+    f.erase_frame(1, 1, true);
+    f.erase_frame(1, 1, true);
+    f.erase_frame(1, 1, false);
+    assert((f.spoken() == Texts{std::string("Erase? No. ") + kPromptKeys, "Yes", "No"}));
+}
+
+void erase_data_prompt_closes_silently_each_way() {
+    Fixture f;
+    f.erase_frame(2);
+    f.spoken();
+    /* A on No. */
+    f.erase_frame(2, 1, false);
+    f.erase_frame(2, 0, false);
+    /* B, which leaves the choice as it was. */
+    f.erase_frame(2, 1, false);
+    f.erase_frame(2, 1, true);
+    f.erase_frame(2, 0, true);
+    /* A on Yes erases the row. */
+    f.erase_frame(2, 1, false);
+    f.erase_frame(2, 1, true);
+    Erased erased{};
+    erased[2] = true;
+    f.erase_frame(2, 0, true, erased);
+    assert((f.spoken() == Texts{std::string("Erase? No. ") + kPromptKeys, "Erase? No", "Yes",
+                              "Erase? No", "Yes"}));
+}
+
+void erase_data_erased_row_says_so_and_a_on_it_says_nothing() {
+    Fixture f;
+    Erased erased{};
+    erased[0] = true;
+    f.erase_frame(0, 0, true, erased);
+    f.spoken();
+    /* A on the erased row: the screen does nothing. */
+    f.erase_frame(0, 0, true, erased);
+    f.erase_frame(0, 0, true, erased);
+    assert(f.spoken().empty());
+    f.erase_frame(1, 0, true, erased);
+    f.erase_frame(0, 0, true, erased);
+    assert((f.spoken() ==
+            Texts{"Hidden Stages. Erase data which unlocked hidden stages.",
+                "Hidden Characters: erased. Erase data which unlocked hidden characters."}));
+}
+
+void erase_data_opens_on_an_erased_row() {
+    Fixture f;
+    Erased erased{};
+    erased[0] = true;
+    f.erase_frame(0, 0, false, erased);
+    assert((f.spoken() == Texts{std::string("Erase Data. Hidden Characters: erased. ") +
+                                kEraseKeys + " Erase data which unlocked hidden characters."}));
+}
+
+void erase_all_takes_both_prompts_and_marks_every_row() {
+    Fixture f;
+    f.erase_frame(4);
+    f.spoken();
+    f.erase_frame(5);
+    f.erase_frame(5, 1, false);
+    f.erase_frame(5, 1, true);
+    /* Yes opens the second prompt, again on No. */
+    f.erase_frame(5, 2, false);
+    f.erase_frame(5, 2, true);
+    Erased all;
+    all.fill(true);
+    f.erase_frame(5, 0, true, all);
+    f.erase_frame(0, 0, true, all);
+    f.erase_frame(5, 0, true, all);
+    assert((f.spoken() ==
+            Texts{"Erase All. Erase all game data.", std::string("Erase? No. ") + kPromptKeys,
+                "Yes", "Are you sure? No", "Yes",
+                "Hidden Characters: erased. Erase data which unlocked hidden characters.",
+                "Erase All: erased. Erase all game data."}));
+}
+
+void erase_all_no_on_either_prompt_closes_silently() {
+    Fixture f;
+    f.erase_frame(5);
+    f.spoken();
+    f.erase_frame(5, 1, false);
+    f.erase_frame(5, 0, false);
+    f.erase_frame(5, 1, false);
+    f.erase_frame(5, 1, true);
+    f.erase_frame(5, 2, false);
+    f.erase_frame(5, 0, false);
+    assert((f.spoken() == Texts{std::string("Erase? No. ") + kPromptKeys, "Erase? No", "Yes",
+                              "Are you sure? No"}));
+}
+
+void erase_data_prompt_keys_again_after_reopening() {
+    Fixture f;
+    f.erase_frame(0);
+    f.erase_frame(0, 1, false);
+    f.erase_frame(0, 0, false);
+    /* B back to Options, and Erase Data again. */
+    f.frame(kSettings, 5, kEraseDataEntryText);
+    f.erase_frame(0);
+    f.spoken();
+    f.erase_frame(0, 1, false);
+    assert((f.spoken() == Texts{std::string("Erase? No. ") + kPromptKeys}));
+}
+
+void erase_data_unknown_row_and_missing_texts_are_logged() {
+    Fixture f;
+    f.erase_frame(0, 0, false, {}, false);
+    f.erase_frame(0, 1, false, {}, false);
+    f.erase_frame(0, 0, false, {}, false);
+    f.erase_frame(7);
+    assert((f.spoken() == Texts{std::string("Erase Data. Hidden Characters. ") + kEraseKeys,
+                              std::string("No. ") + kPromptKeys, "Unknown row 7"}));
+    assert(count_logged("[a11y] menu 24 row 0: no description") == 1);
+    assert(count_logged("[a11y] menu 24 prompt 318: no description") == 1);
+    assert(count_logged("[a11y] menu 24 row 7: not in the menu names table") == 1);
+    assert(count_logged("[a11y] menu 24 row 7: no description") == 1);
+}
+
 void plain_capitals_keeps_abbreviations() {
     assert(a11y::plain_capitals("DIRECT CONNECT") == "Direct connect");
     assert(a11y::plain_capitals("LAN PLAY") == "LAN play");
@@ -1123,6 +1325,17 @@ int main() {
     the_first_frame_in_japanese_is_no_change();
     japanese_text_has_no_font_glyphs_of_the_english_table();
     language_without_its_centre_text_is_logged();
+    erase_data_opens_on_hidden_characters();
+    erase_data_rows_move_and_wrap();
+    erase_data_names_every_row();
+    erase_data_prompt_opens_on_no_and_switches();
+    erase_data_prompt_closes_silently_each_way();
+    erase_data_erased_row_says_so_and_a_on_it_says_nothing();
+    erase_data_opens_on_an_erased_row();
+    erase_all_takes_both_prompts_and_marks_every_row();
+    erase_all_no_on_either_prompt_closes_silently();
+    erase_data_prompt_keys_again_after_reopening();
+    erase_data_unknown_row_and_missing_texts_are_logged();
     plain_capitals_keeps_abbreviations();
     std::cout << "menu_speech: all tests passed\n";
     return 0;

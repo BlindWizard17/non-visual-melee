@@ -63,6 +63,30 @@ typedef struct A11yRules {
     int self_destructs;
 } A11yRules;
 
+/* Erase Data's rows, top to bottom: Hidden Characters, Hidden Stages, 1-P
+ * High Score, VS. Mode Scores, Trophy Collection, Erase All. */
+enum { A11Y_ERASE_ROWS = 6 };
+
+/* Erase Data (mndatadel.c), from its gobj's user data, read only while it is
+ * the screen. The game's own state: in the base port the drawn YES and NO
+ * highlight does not match the choice. */
+typedef struct A11yEraseData {
+    /* The hovered row, 0 to 5. */
+    int row;
+    /* The prompt up: 0 none, 1 "Erase?", 2 "Are you sure?" (Erase All's
+     * second). */
+    int prompt;
+    /* The prompt's choice: Yes, or No, where each prompt opens. */
+    bool yes;
+    /* The rows erased this visit; reopening the screen clears them, and Erase
+     * All sets them all. */
+    bool erased[A11Y_ERASE_ROWS];
+    /* The hovered row's description and the prompt's text as game text, or
+     * NULL. */
+    const uint8_t* description;
+    const uint8_t* prompt_text;
+} A11yEraseData;
+
 /* What the main menu tree shows, read once a frame by the menu reader. */
 typedef struct A11yMenuState {
     /* The menu screen (MenuKind) and its hovered entry, from mn_804A04F0. On
@@ -113,6 +137,8 @@ typedef struct A11yMenuState {
      * is where the screen opens it, on the saved language. Meaningless on
      * other screens. */
     bool language_cursor_japanese;
+    /* Erase Data's state; all zero on other screens. */
+    A11yEraseData erase;
 } A11yMenuState;
 
 /* Fills the snapshot from game memory, refused left false; center_text is

@@ -114,6 +114,29 @@ extern struct {
     u8 pad[2];
 } mn_803ED2E8;
 
+/* Erase Data's gobj (mndatadel.c), declared in no header; it is created as
+ * the screen opens and freed some frames after it closes, without the
+ * pointer being cleared, so it is read only while Erase Data is the screen. */
+extern HSD_GObj* mnDataDel_804D6C68;
+
+/* The head of that gobj's user data, as mndatadel.c declares it
+ * (MnDataDelGObjUserData, in no header): the row, the prompt, its choice and
+ * the rows erased this visit. */
+struct a11y_erase_data_head {
+    u8 row;
+    u8 prompt;
+    u8 yes;
+    u8 erased[A11Y_ERASE_ROWS];
+};
+
+/* A copy of mndatadel.c's mnDataDel_803EF8C8, static there: each row's
+ * description by its SdMenu number. */
+static const u16 a11y_erase_descriptions[A11Y_ERASE_ROWS] = {0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC6};
+
+/* The prompts' texts, "Erase?" and "Are you sure?" (mnDataDel_AnimateWarning,
+ * fn_8024F318). */
+enum { A11Y_ERASE_PROMPT_TEXT = 318, A11Y_ERASE_SURE_TEXT = 319 };
+
 /* The main menu's strings sit in font slot 0 (mnMain_Scene_OnEnter). */
 enum { A11Y_MENU_FONT = 0 };
 
@@ -242,6 +265,27 @@ static const uint8_t* additional_rules_description(int row, const GameRules* rul
     return menu_string(mn_803ED2E8.desc[row][value]);
 }
 
+static void erase_data_state(A11yEraseData* out) {
+    memset(out, 0, sizeof(*out));
+    if (mnDataDel_804D6C68 == NULL || mnDataDel_804D6C68->user_data == NULL) {
+        return;
+    }
+    const struct a11y_erase_data_head* data = mnDataDel_804D6C68->user_data;
+    out->row = data->row;
+    out->prompt = data->prompt;
+    out->yes = data->yes != 0;
+    for (int i = 0; i < A11Y_ERASE_ROWS; i++) {
+        out->erased[i] = data->erased[i] != 0;
+    }
+    if (data->row < A11Y_ERASE_ROWS) {
+        out->description = menu_string(a11y_erase_descriptions[data->row]);
+    }
+    if (data->prompt != 0) {
+        out->prompt_text =
+            menu_string(data->prompt == 1 ? A11Y_ERASE_PROMPT_TEXT : A11Y_ERASE_SURE_TEXT);
+    }
+}
+
 void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* out) {
     MenuKind menu = (MenuKind)mn_804A04F0.cur_menu;
     int hovered = mn_804A04F0.hovered_selection;
@@ -267,6 +311,11 @@ void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* o
     out->language_japanese = lbLang_GetSavedLanguage() == LANG_JP;
     out->language_cursor_japanese =
         language_cursor >= 0 ? language_cursor == LANG_JP : out->language_japanese;
+    if (menu == MENU_KIND_SETTINGS_ERASE) {
+        erase_data_state(&out->erase);
+    } else {
+        memset(&out->erase, 0, sizeof(out->erase));
+    }
     /* The same precedence as mn_80229A7C, which draws the description line:
      * the base port's text first, then SdMenu's by the table's number. */
     if (out->pc_description != NULL || (int)menu >= A11Y_MENU_TABLE_LEN) {

@@ -73,6 +73,8 @@ LeafReader* MenuSpeech::leaf_reader(int menu) {
     switch (static_cast<MenuKind>(menu)) {
     case MenuKind::MENU_KIND_SETTINGS_LANG:
         return &m_language;
+    case MenuKind::MENU_KIND_SETTINGS_ERASE:
+        return &m_erase_data;
     default:
         return nullptr;
     }
