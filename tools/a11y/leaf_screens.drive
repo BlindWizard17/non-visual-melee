@@ -1,5 +1,5 @@
-# Opens the three leaf screens with a reader (Sound, Screen Display, Multi-Man
-# Melee), changes what each lets the player change, and waits on each
+# Opens the three leaf screens the table-driven reader serves (Sound, Screen
+# Display, Multi-Man Melee), changes what each lets the player change, and waits on each
 # announcement, so a missing or changed line fails the run. Sound and Screen
 # Display are put back as they were before leaving. Run with the default
 # --scene title:

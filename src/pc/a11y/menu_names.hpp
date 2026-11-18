@@ -11,6 +11,7 @@
  * (sss_names.hpp). */
 #pragma once
 #include "item_kinds.h"
+#include "menu_kinds.h"
 #include "stage_kinds.h"
 #include <optional>
 #include <span>
@@ -18,6 +19,13 @@
 #include <string_view>
 
 namespace a11y {
+
+/* The menu screens by the decomp's numbers (A11yMenuState.menu). */
+enum class MenuKind : int {
+#define A11Y_MENU_KIND_ENUMERATOR(name, number) name = number,
+    A11Y_MENU_KINDS(A11Y_MENU_KIND_ENUMERATOR)
+#undef A11Y_MENU_KIND_ENUMERATOR
+};
 
 /* The setting a reader's row shows beside its name. */
 enum class RowValue {

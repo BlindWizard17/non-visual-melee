@@ -44,6 +44,10 @@ included.
     read. Switching the game to Japanese makes the game's own text Japanese,
     such as the menus' descriptions, and speech can read it only in part;
     Non-Visual Melee's own words stay English.
+  - **Language.** Left and right choose between Japanese and English, and A
+    switches the game to the one you are on. The menus then start again on
+    Options with Language hovered, and the change is said. To switch back, A
+    opens Language again, left or right goes to English and A confirms.
   - **Erase Data.** Up and down move through the kinds of data, each with the
     game's description, and A opens the prompt "Erase?", which starts on No:
     left and right choose, A confirms. Erase All asks a second time, "Are you

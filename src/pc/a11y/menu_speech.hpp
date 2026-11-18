@@ -39,6 +39,9 @@ public:
     /* speech must outlive this; text decodes the descriptions' game text,
      * the menu font's own glyphs added while the game is in English. */
     MenuSpeech(Speech& speech, GameTextSource text) : m_speech(speech), m_text(text) {}
+    /* The leaf readers hold a reference to m_text. */
+    MenuSpeech(const MenuSpeech&) = delete;
+    MenuSpeech& operator=(const MenuSpeech&) = delete;
 
     /* A scene was entered: the next snapshot is an arrival, spoken as the
      * screen opening even when it matches the last one seen. */

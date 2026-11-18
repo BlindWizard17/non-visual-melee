@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "menu_speech.hpp"
-#include "menu_kinds.h"
 #include "menu_names.hpp"
 #include "sentences.hpp"
 #include <optional>
@@ -8,12 +7,6 @@
 
 namespace a11y {
 namespace {
-
-enum class MenuKind : int {
-#define A11Y_MENU_KIND_ENUMERATOR(name, number) name = number,
-    A11Y_MENU_KINDS(A11Y_MENU_KIND_ENUMERATOR)
-#undef A11Y_MENU_KIND_ENUMERATOR
-};
 
 /* A tree screen's hovered entry, as log lines name it. */
 std::string entry_where(const A11yMenuState& state) {

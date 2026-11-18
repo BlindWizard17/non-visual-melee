@@ -9,8 +9,6 @@ constexpr std::string_view kHint = "Left and right to choose.";
 /* After a switch to Japanese the game's descriptions, prompts and notices
  * are Japanese and the fork's own words stay English. */
 constexpr std::string_view kJapaneseWarning = "The game's own text will be in Japanese.";
-/* SdMenu's 0xBF, the screen's only centre text, as log lines name it. */
-constexpr std::string_view kWhere = "[a11y] menu 23 centre text 191";
 
 }  // namespace
 
@@ -22,7 +20,10 @@ std::string LanguageReader::opening(const A11yMenuState& state) {
     m_cursor_japanese = state.language_cursor_japanese;
     std::string out = choice(state);
     add_sentence(out, kHint);
-    add_sentence(out, m_text.description(state.center_text_string, state, std::string(kWhere)));
+    /* SdMenu's 0xBF, the screen's only centre text. */
+    add_sentence(out, m_text.description(state.center_text_string, state,
+                          "[a11y] menu " + std::to_string(state.menu) + " centre text " +
+                              std::to_string(state.center_text)));
     return out;
 }
 

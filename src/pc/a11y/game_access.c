@@ -304,8 +304,8 @@ static void erase_data_state(A11yEraseData* out) {
         out->description = menu_string(a11y_erase_descriptions[data->row]);
     }
     if (data->prompt != 0) {
-        out->prompt_text =
-            menu_string(data->prompt == 1 ? A11Y_ERASE_PROMPT_TEXT : A11Y_ERASE_SURE_TEXT);
+        out->prompt_number = data->prompt == 1 ? A11Y_ERASE_PROMPT_TEXT : A11Y_ERASE_SURE_TEXT;
+        out->prompt_text = menu_string(out->prompt_number);
     }
 }
 

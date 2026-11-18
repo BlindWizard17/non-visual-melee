@@ -12,9 +12,6 @@ constexpr std::array<std::string_view, A11Y_ERASE_ROWS> kRows = {"Hidden Charact
     "Hidden Stages", "1-P High Score", "VS. Mode Scores", "Trophy Collection", "Erase All"};
 constexpr std::string_view kKeys = "Up and down to move, A to erase.";
 constexpr std::string_view kPromptKeys = "Left and right to choose, A to confirm.";
-/* The prompts' texts by their SdMenu numbers, as log lines name them. */
-constexpr int kPromptText = 318;
-constexpr int kSureText = 319;
 
 std::string where(const A11yMenuState& state) {
     return "[a11y] menu " + std::to_string(state.menu) + " row " + std::to_string(state.erase.row);
@@ -74,9 +71,9 @@ std::string EraseDataReader::row(const A11yMenuState& state) {
 
 std::string EraseDataReader::prompt(const A11yMenuState& state) {
     const A11yEraseData& erase = state.erase;
-    int number = erase.prompt == 1 ? kPromptText : kSureText;
     std::string out = m_text.description(erase.prompt_text, state,
-        "[a11y] menu " + std::to_string(state.menu) + " prompt " + std::to_string(number));
+        "[a11y] menu " + std::to_string(state.menu) + " prompt " +
+            std::to_string(erase.prompt_number));
     add_sentence(out, erase.yes ? "Yes" : "No");
     if (!m_prompt_keys_said) {
         m_prompt_keys_said = true;

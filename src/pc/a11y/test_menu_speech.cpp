@@ -289,6 +289,8 @@ struct Fixture {
         Bytes prompt_text = prompt != 0 && texts ?
                                 game_text(prompt == 1 ? kErasePromptText : kEraseSureText) :
                                 Bytes{};
+        /* SdMenu's 318 and 319, as game_access.c numbers them. */
+        int prompt_number = prompt == 0 ? 0 : prompt == 1 ? 318 : 319;
         A11yMenuState state{};
         state.menu = kEraseData;
         state.erase.row = row;
@@ -299,6 +301,7 @@ struct Fixture {
         }
         state.erase.description = description.empty() ? nullptr : description.data();
         state.erase.prompt_text = prompt_text.empty() ? nullptr : prompt_text.data();
+        state.erase.prompt_number = prompt_number;
         this->menu.frame(state);
     }
 

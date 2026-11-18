@@ -85,6 +85,8 @@ typedef struct A11yEraseData {
      * NULL. */
     const uint8_t* description;
     const uint8_t* prompt_text;
+    /* The prompt's text by its SdMenu number, as log lines name it, or 0. */
+    int prompt_number;
 } A11yEraseData;
 
 /* Rumble's controller panels, P1 to P4. */
@@ -96,7 +98,8 @@ typedef struct A11yRumblePort {
      * shows a red cross and no value while it is not. */
     bool connected;
     /* Its place: in the names list, or on its own panel, where each
-     * controller opens. */
+     * controller opens. Left as it was while the controller is unplugged;
+     * plugging it in puts it back on its panel. */
     bool in_names;
     /* Its rumble setting (GetRumbleSettingOfPort). */
     bool rumble;

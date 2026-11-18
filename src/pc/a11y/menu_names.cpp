@@ -1,19 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "menu_names.hpp"
 #include "item_names.hpp"
-#include "menu_kinds.h"
 #include "sss_names.hpp"
 #include <iterator>
 #include <span>
 
 namespace a11y {
 namespace {
-
-enum class MenuKind : int {
-#define A11Y_MENU_KIND_ENUMERATOR(name, number) name = number,
-    A11Y_MENU_KINDS(A11Y_MENU_KIND_ENUMERATOR)
-#undef A11Y_MENU_KIND_ENUMERATOR
-};
 
 enum class RulesMode : int {
 #define A11Y_RULES_MODE_ENUMERATOR(name, number) name = number,
