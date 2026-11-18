@@ -7,6 +7,8 @@ drive.py --card loads, or starts the maintainer's own game on it.
 
   python tools/a11y/make_save.py challenger NAME [--out GCI]
   python tools/a11y/make_save.py challenger NAME --play [--dry-run]
+  python tools/a11y/make_save.py names [--out GCI]
+  python tools/a11y/make_save.py names --play [--dry-run]
   python tools/a11y/make_save.py show GCI
 
 Edits:
@@ -21,6 +23,11 @@ Edits:
                     human, a match quit from the pause included, which
                     leaves the count as it was: so every VS match brings
                     NAME, run after run, until NAME is beaten.
+  names             Ten names, as Name Entry would make them, more than the
+                    eight Rumble's names list shows, so it scrolls: ANNA,
+                    BEN, CARL, DORA, ED, FAY, GUS, HAL, IVY and JO, in the
+                    first name tag slots, their rumble on and off by turns
+                    from ANNA's on. Any names the save held are replaced.
 
 show prints what the edits touch in a save, each copy of it.
 
@@ -30,8 +37,8 @@ time it is needed, a drive.py --card run of memcard_create.drive makes it,
 silent and in the background, in the shader cache slot --cache-slot names.
 Delete it to have it made again, after a base merge that changes the save.
 
---out names the edited save (default build/drive/challenger.gci for the
-challenger, overwritten each time). For a drive run:
+--out names the edited save (default build/drive/<edit>.gci, challenger.gci
+or names.gci, overwritten each time). For a drive run:
 
   python tools/a11y/make_save.py challenger jigglypuff
   python tools/a11y/drive.py tools/a11y/challenger.drive --card=build/drive/challenger.gci
@@ -59,6 +66,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -76,6 +84,14 @@ PAYLOAD = 0x20  # the block header's size
 BLOCK_ID = 0x10  # big-endian u16 in the header
 SAVE_BLOCK_ID = 1
 SAVE_SIZE = 0x1790  # GmSaveData
+# The name tags: seven blocks, ids 2 to 8, each a bank of 19 name tags
+# (NameTagDataBank, the card's manifest in lbcardgame.c), slot n in bank
+# n // 19 at n % 19 (GetPersistentNameData).
+FIRST_TAG_BLOCK_ID = 2
+TAG_BANKS = 7
+TAG_BANK_SLOTS = 19
+TAG_SIZE = 0x1A4  # NameTagData
+TAG_SLOTS = 120  # GM_NAMETAG_COUNT, the slots the game uses
 
 
 def checksum(data):
@@ -166,36 +182,50 @@ def decrypt(block):
     return bytes(b), checksum(b[16:]) == bytes(b[0:16])
 
 
-def save_copies(data):
-    """Each copy of GmSaveData in the GCI bytes data: (sector, plain block),
-    the block one whose checksum holds."""
+def block_copies(data, block_id):
+    """Each copy of the block block_id in the GCI bytes data: (sector, plain
+    block), the copies whose checksum holds."""
     sectors = (len(data) - GCI_ENTRY) // SECTOR
     for sector in range(1, sectors):
         start = GCI_ENTRY + sector * SECTOR
         plain, ok = decrypt(data[start:start + SECTOR])
-        if ok and struct.unpack_from(">H", plain, BLOCK_ID)[0] == SAVE_BLOCK_ID:
+        if ok and struct.unpack_from(">H", plain, BLOCK_ID)[0] == block_id:
             yield sector, plain
+
+
+def save_copies(data):
+    """Each copy of GmSaveData in the GCI bytes data: (sector, plain block),
+    the block one whose checksum holds."""
+    return block_copies(data, SAVE_BLOCK_ID)
+
+
+def edit_block(data, block_id, size, edit, what):
+    """The GCI bytes data with edit applied to the first size bytes of the
+    payload of every copy of the block block_id, and the number of copies.
+    edit takes those bytes, a bytearray, and changes them in place.
+    ValueError, naming what, if the file holds no copy."""
+    out = bytearray(data)
+    copies = 0
+    for sector, plain in block_copies(data, block_id):
+        block = bytearray(plain)
+        payload = block[PAYLOAD:PAYLOAD + size]
+        edit(payload)
+        block[PAYLOAD:PAYLOAD + size] = payload
+        sealed = encrypt(bytes(block))
+        start = GCI_ENTRY + sector * SECTOR
+        out[start:start + SECTOR] = sealed
+        copies += 1
+    if not copies:
+        raise ValueError(f"no block of the game's {what} whose checksum holds: not a save of this game, "
+                         "or the cipher no longer matches the game's")
+    return bytes(out), copies
 
 
 def edit_save(data, edit):
     """The GCI bytes data with edit applied to every copy of GmSaveData, and
     the number of copies. edit takes the save's bytes, a bytearray, and
     changes them in place. ValueError if the file holds no copy."""
-    out = bytearray(data)
-    copies = 0
-    for sector, plain in save_copies(data):
-        block = bytearray(plain)
-        save = block[PAYLOAD:PAYLOAD + SAVE_SIZE]
-        edit(save)
-        block[PAYLOAD:PAYLOAD + SAVE_SIZE] = save
-        sealed = encrypt(bytes(block))
-        start = GCI_ENTRY + sector * SECTOR
-        out[start:start + SECTOR] = sealed
-        copies += 1
-    if not copies:
-        raise ValueError("no block of the game's save data whose checksum holds: not a save of this game, "
-                         "or the cipher no longer matches the game's")
-    return bytes(out), copies
+    return edit_block(data, SAVE_BLOCK_ID, SAVE_SIZE, edit, "save data")
 
 
 # GmSaveData's fields the edits touch (src/melee/gm/types.h).
@@ -250,6 +280,93 @@ def describe(save):
             f"VS play time {seconds // 3600}:{seconds // 60 % 60:02}:{seconds % 60:02}")
 
 
+# NameTagData's fields the names edit touches (src/melee/gm/types.h).
+TAG_NAME = 0x198  # char[8], Shift-JIS; an empty slot's starts with 0
+TAG_NAME_SIZE = 8
+TAG_RUMBLE = 0x1A1  # u8 rumble_enabled
+
+# The names edit's names in slot order, with their rumble: ten, more than
+# the eight Rumble's names list shows, on and off by turns.
+NAMES = tuple((name, i % 2 == 0) for i, name in enumerate(
+    ("ANNA", "BEN", "CARL", "DORA", "ED", "FAY", "GUS", "HAL", "IVY", "JO")))
+
+
+def name_tag_bytes(name):
+    """name as Name Entry writes it: one to four characters, each the
+    full-width Shift-JIS form of a capital, a digit or a space (the US name
+    keyboard's), zero-padded to the slot's eight bytes. ValueError for any
+    other."""
+    if not 0 < len(name) <= 4 or not re.fullmatch(r"[A-Z0-9 ]+", name):
+        raise ValueError(f"{name!r} is no name: one to four capitals, digits or spaces")
+    wide = "".join("　" if c == " " else chr(ord(c) + 0xFEE0) for c in name)
+    return wide.encode("cp932").ljust(TAG_NAME_SIZE, b"\x00")
+
+
+def names_edits(names=NAMES):
+    """The names edit as {block id: edit} for edit_block: names, (name,
+    rumble) pairs, written into the first name tag slots, as Name Entry
+    keeps them, and every later slot emptied. A name's other fields stay as
+    the fresh save has them, cleared, as CreateNameAtIndex leaves a new
+    name's."""
+    if len(names) > TAG_SLOTS:
+        raise ValueError(f"{len(names)} names; the game keeps {TAG_SLOTS}")
+    tags = [(name_tag_bytes(name), rumble) for name, rumble in names]
+
+    def bank_edit(bank):
+        def edit(payload):
+            for i in range(TAG_BANK_SLOTS):
+                slot = bank * TAG_BANK_SLOTS + i
+                at = i * TAG_SIZE
+                if slot < len(tags):
+                    name, rumble = tags[slot]
+                    payload[at + TAG_NAME:at + TAG_NAME + TAG_NAME_SIZE] = name
+                    payload[at + TAG_RUMBLE] = 1 if rumble else 0
+                else:
+                    payload[at + TAG_NAME] = 0
+        return edit
+
+    return {FIRST_TAG_BLOCK_ID + bank: bank_edit(bank) for bank in range(TAG_BANKS)}
+
+
+def edit_names(data, names=NAMES):
+    """The GCI bytes data with names written into its name tags, and the
+    number of blocks edited. ValueError if a bank has no copy."""
+    edited = 0
+    for block_id, edit in names_edits(names).items():
+        data, copies = edit_block(data, block_id, TAG_BANK_SLOTS * TAG_SIZE, edit,
+                                  f"name tags (block {block_id})")
+        edited += copies
+    return data, edited
+
+
+def saved_names(data):
+    """The names in the GCI bytes data's name tags, as (slot, name, rumble)
+    in slot order, from the first copy of each bank; empty slots left
+    out."""
+    out = []
+    for bank in range(TAG_BANKS):
+        copy = next(block_copies(data, FIRST_TAG_BLOCK_ID + bank), None)
+        if copy is None:
+            continue
+        payload = copy[1][PAYLOAD:]
+        for i in range(TAG_BANK_SLOTS):
+            at = i * TAG_SIZE
+            raw = payload[at + TAG_NAME:at + TAG_NAME + TAG_NAME_SIZE].split(b"\x00")[0]
+            if raw:
+                name = raw.decode("cp932", errors="replace")
+                out.append((bank * TAG_BANK_SLOTS + i, name, payload[at + TAG_RUMBLE] != 0))
+    return out
+
+
+def describe_names(data):
+    names = saved_names(data)
+    if not names:
+        return "no names"
+    # Full-width letters folded to ASCII, which any console prints.
+    return f"{len(names)} names: " + ", ".join(
+        f"{unicodedata.normalize('NFKC', n)} ({'on' if r else 'off'})" for _, n, r in names)
+
+
 def make_fresh_save(cache_slot):
     """FRESH_SAVE, made by the game the first time: memcard_create.drive on
     the run's own empty card answers Yes to "Create Game Data?". Its
@@ -285,11 +402,13 @@ def read(path):
 
 
 def show(path):
-    copies = list(save_copies(read(path)))
+    data = read(path)
+    copies = list(save_copies(data))
     if not copies:
         sys.exit(f"{path}: no block of the game's save data")
     for sector, plain in copies:
         print(f"sector {sector}: {describe(plain[PAYLOAD:PAYLOAD + SAVE_SIZE])}")
+    print(describe_names(data))
 
 
 def play(data, disc, dry_run):
@@ -358,8 +477,9 @@ def main():
     shown.add_argument("gci", nargs="?", default=FRESH_SAVE, help="the save (default the fresh save)")
     chal = sub.add_parser("challenger", help="NAME comes after the next VS match")
     chal.add_argument("name", help="the challenger, one of the 11 (jigglypuff, mewtwo, ...)")
+    names = sub.add_parser("names", help="ten names, so that Rumble's names list scrolls")
     # The options every edit takes.
-    for p in (chal,):
+    for p in (chal, names):
         p.add_argument("--out", help="the edited save (default build/drive/<edit>.gci)")
         p.add_argument("--fresh", help="the save to edit (default the fresh save, made if missing)")
         p.add_argument("--cache-slot", default="1",
@@ -378,18 +498,25 @@ def main():
         ap.error("--dry-run is --play's")
     if args.play and args.out:
         ap.error("--play writes the save into build/play; --out is for a drive run's save")
-    try:
-        name = challenger_name(args.name)
-    except ValueError as e:
-        ap.error(str(e))
+    if args.what == "challenger":
+        try:
+            name = challenger_name(args.name)
+        except ValueError as e:
+            ap.error(str(e))
     fresh = args.fresh or make_fresh_save(args.cache_slot)
     try:
-        data, copies = edit_save(read(fresh), challenger_edit(name))
+        if args.what == "challenger":
+            data, copies = edit_save(read(fresh), challenger_edit(name))
+        else:
+            data, copies = edit_names(read(fresh))
     except (OSError, ValueError) as e:
         sys.exit(f">> FAILED: {fresh}: {e}")
-    copy = next(save_copies(data))[1]
-    print(f"{name} comes after the next VS match ({describe(copy[PAYLOAD:PAYLOAD + SAVE_SIZE])}; "
-          f"{copies} copies edited)")
+    if args.what == "challenger":
+        copy = next(save_copies(data))[1]
+        print(f"{name} comes after the next VS match ({describe(copy[PAYLOAD:PAYLOAD + SAVE_SIZE])}; "
+              f"{copies} copies edited)")
+    else:
+        print(f"{describe_names(data)} ({copies} blocks edited)")
     if args.play:
         try:
             play(data, args.disc, args.dry_run)

@@ -106,6 +106,22 @@ typedef struct A11yRumblePort {
  * the screen; all zero elsewhere. */
 typedef struct A11yRumble {
     A11yRumblePort ports[A11Y_RUMBLE_PORTS];
+    /* The names in the save (GetNameCount); with none the names list is
+     * empty and Right does nothing. */
+    int name_count;
+    /* The names list's one cursor, shared by every controller in it: its
+     * row among the eight names shown (x0[1]) and the first name shown
+     * (scroll_offset). */
+    int names_row;
+    int names_scroll;
+    /* The hovered name's name tag slot, names_scroll + names_row, as the
+     * game keeps its names in the first slots; -1 with none. */
+    int name_slot;
+    /* The hovered name, up to eight bytes of Shift-JIS and a terminator;
+     * empty with none. */
+    char name[9];
+    /* The hovered name's rumble setting (its name tag's rumble_enabled). */
+    bool name_rumble;
     /* The line the screen always draws at its foot, "Player name entry must
      * precede Rumble setting.", as game text, or NULL. */
     const uint8_t* bottom_line;

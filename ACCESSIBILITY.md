@@ -52,9 +52,14 @@ included.
     "erased" until you leave the screen, and A on it does nothing.
   - **Rumble.** The screen opens with each plugged-in controller's rumble, such
     as "P1: On", and A on any controller switches its own rumble. A controller
-    plugged in or unplugged while the screen is up is said. The list of names
-    beside the controllers, which has a rumble setting per name, is not read
-    yet.
+    plugged in or unplugged while the screen is up is said. Beside the
+    controllers is the list of names made in Name Entry, each with a rumble
+    setting of its own, used instead of the controller's when a player plays
+    under that name. Once there are names, right takes your controller into
+    the list, saying "Names" and the name you are on with its setting, and
+    left takes it back to its own rumble. Up and down move through the names,
+    and A switches the name's rumble. The list has one cursor, shared by every
+    controller in it. Name Entry itself is not read yet.
 - **Character select and stage select.** On these screens the game has you move
   a free cursor around the screen rather than step through a list. Here the
   D-pad steps the cursor from one thing on the screen to the next, saying where

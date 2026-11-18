@@ -19,7 +19,8 @@ times.json beside the transcripts:
           port menu's three among them; the match announcements' scripts
           run by name. memcard_corrupted runs memcard_create.drive first
           and takes the save it makes, corrupted; challenger runs
-          make_save.py first for a save that brings Jigglypuff
+          make_save.py first for a save that brings Jigglypuff, and
+          rumble_names for a save with ten names
   online  css_net.drive at delay 0, delay 10 and over a 100 ms slow link,
           results_net.drive, match_net.drive and match_items_net.drive
           (--muted), lan_lobby.drive
@@ -63,7 +64,8 @@ MENUS = ["rules_switches", "tree_walk", "css_rules", "css_setup", "rules_screens
          "results_teams", "training_menu", "launcher_home",
          "launcher_settings", "launcher_a11y", "launcher_voices", "port_menu", "port_menu_a11y",
          "port_menu_voices", "direct_hub", "memcard_no", "memcard_no_card", "memcard_corrupted",
-         "unlock_notices", "challenger", "language", "erase_data", "rumble"]
+         "unlock_notices", "challenger", "language", "erase_data", "rumble",
+         "rumble_names"]
 # drive.py options a script needs: the launcher's scripts open the launcher,
 # with accessibility on but muted, since its line reading needs the switch on,
 # as the port menu's does.
@@ -85,7 +87,7 @@ CORRUPTED_SAVE_FROM = {"memcard_corrupted": "memcard_create"}
 # A run that takes a save make_save.py edits, made first in the same cache
 # slot (which also makes the fresh save it edits, the first time) and
 # written beside the transcript (<run>.gci).
-SAVE_EDIT = {"challenger": ["challenger", "jigglypuff"]}
+SAVE_EDIT = {"challenger": ["challenger", "jigglypuff"], "rumble_names": ["names"]}
 US_SAVE = os.path.join("USA", "Card A", "01-GALE-SuperSmashBros0110290334.gci")
 # Settings a script needs from the environment. The Accessibility
 # category's scripts leave Steering and Cues to the run's a11y.ini, so their
@@ -200,6 +202,10 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
          # P1 switched four times; Right with no names leaves P1 on its panel
          # and says nothing.
          "rumble": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "P1: O(n|ff)"$'), 4)],
+         # Nine moves down and nine up; one at either end says nothing. Two
+         # switches of a name.
+         "rumble_names": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "[A-Z]+: O(n|ff)"$'), 18),
+                          (re.compile(r'\[a11y\] speak \w+( \(off\))?: "O(n|ff)"$'), 2)],
          # The save brings Jigglypuff, named once.
          "challenger": [(re.compile(r'\[a11y\] speak .*A new foe has appeared: Jigglypuff\. A to fight\."$'), 1)]}
 

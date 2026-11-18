@@ -135,9 +135,85 @@ def test_refusals():
         pass
 
 
+def tag_bank(names):
+    """A bank of name tags as a fresh save has them (each cleared with its
+    rumble on and x1A2 at 5, as InitializePersistentNameData leaves it),
+    the given (slot, raw name) written in."""
+    payload = bytearray(make_save.TAG_BANK_SLOTS * make_save.TAG_SIZE)
+    for i in range(make_save.TAG_BANK_SLOTS):
+        at = i * make_save.TAG_SIZE
+        payload[at + 0x1A1] = 1
+        payload[at + 0x1A2] = 5
+        payload[at + 0x10] = 0x77  # a VS KO count, to stay put
+    for slot, raw in names:
+        at = slot * make_save.TAG_SIZE + 0x198
+        payload[at:at + len(raw)] = raw
+    return bytes(payload)
+
+
+def tag_save(first_bank_names=()):
+    """A GCI file with the save data and all seven name tag banks."""
+    blocks = [block(1, save_payload(0, 0, 0))]
+    blocks += [block(2 + bank, tag_bank(first_bank_names if bank == 0 else ()))
+               for bank in range(make_save.TAG_BANKS)]
+    return gci(blocks)
+
+
+def test_name_tag_bytes():
+    check(make_save.name_tag_bytes("ANNA") == "ＡＮＮＡ".encode("cp932"), "ANNA not full-width")
+    check(make_save.name_tag_bytes("ED") == b"\x82\x64\x82\x63" + bytes(4), "ED not padded to eight bytes")
+    check(make_save.name_tag_bytes("A 1") == "Ａ　１".encode("cp932") + bytes(2), "a space or digit not full-width")
+    for name in ("", "ANNAB", "ann", "É"):
+        try:
+            make_save.name_tag_bytes(name)
+            check(False, f"{name!r} taken as a name")
+        except ValueError:
+            pass
+
+
+def test_names_edit():
+    # The save held one name of its own, in slot 0, which the edit replaces.
+    data = tag_save([(0, "ＯＬＤ".encode("cp932") + bytes(2)), (11, "ＸＹ".encode("cp932"))])
+    edited, blocks = make_save.edit_names(data)
+    check(blocks == make_save.TAG_BANKS, f"{blocks} blocks edited, not {make_save.TAG_BANKS}")
+    check(len(edited) == len(data), "the file changed size")
+    save_start = 0x40 + make_save.SECTOR
+    check(edited[:save_start + make_save.SECTOR] == data[:save_start + make_save.SECTOR],
+          "the entry, the banner or the save data changed")
+    names = make_save.saved_names(edited)
+    expected = [(slot, make_save.name_tag_bytes(name).rstrip(b"\x00").decode("cp932"), slot % 2 == 0)
+                for slot, (name, _) in enumerate(make_save.NAMES)]
+    check(names == expected, f"names after the edit: {names}")
+    check(len(names) == 10, f"{len(names)} names, not ten, more than the eight Rumble shows")
+    plain, ok = make_save.decrypt(edited[0x40 + 2 * make_save.SECTOR:0x40 + 3 * make_save.SECTOR])
+    check(ok, "the first bank fails its checksum after the edit")
+    bank = plain[make_save.PAYLOAD:]
+    for slot in range(make_save.TAG_BANK_SLOTS):
+        at = slot * make_save.TAG_SIZE
+        check(bank[at + 0x1A2] == 5 and bank[at + 0x10] == 0x77,
+              f"slot {slot}: a field the edit does not own changed")
+    # The old name's last bytes gone with it: ＯＬＤ was six bytes, ANNA eight.
+    check(bank[0x198:0x1A0] == make_save.name_tag_bytes("ANNA"), "slot 0 holds more than ANNA")
+    check(bank[11 * make_save.TAG_SIZE + 0x198] == 0, "slot 11's old name was kept")
+    check(bank[1 * make_save.TAG_SIZE + 0x1A1] == 0 and bank[0x1A1] == 1, "BEN's rumble not off, ANNA's not on")
+
+
+def test_names_refusals():
+    try:
+        make_save.edit_names(gci([block(1, save_payload(0, 0, 0))]))
+        check(False, "a file with no name tags was edited")
+    except ValueError:
+        pass
+    try:
+        make_save.names_edits([("A", True)] * (make_save.TAG_SLOTS + 1))
+        check(False, "more names than the game keeps")
+    except ValueError:
+        pass
+
+
 def main():
     for test in (test_cipher, test_checksum_neighbours, test_challenger_edit, test_mewtwo_and_names,
-                 test_refusals):
+                 test_refusals, test_name_tag_bytes, test_names_edit, test_names_refusals):
         test()
     for failure in failures:
         print(f"test_make_save: {failure}")

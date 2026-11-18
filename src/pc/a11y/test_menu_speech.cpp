@@ -95,8 +95,22 @@ using Erased = std::array<bool, A11Y_ERASE_ROWS>;
 struct Panel {
     bool connected = false;
     bool rumble = true;
+    /* On the names list instead of its own panel. */
+    bool in_names = false;
 };
 using Panels = std::array<Panel, A11Y_RUMBLE_PORTS>;
+/* Rumble's names list: the save's names in slot order, each as its
+ * Shift-JIS bytes with its rumble, the cursor row among the eight shown and
+ * the first name shown. */
+struct Name {
+    std::string tag;
+    bool rumble = true;
+};
+struct NamesList {
+    std::vector<Name> names;
+    int row = 0;
+    int scroll = 0;
+};
 constexpr const char* kRumbleEntryText = "Turn rumble on or off.";
 constexpr const char* kRumbleBottomText = "Player name entry must precede\nRumble setting.";
 constexpr const char* kChannelText = "Choose between Stereo\nand Mono sound.";
@@ -288,16 +302,29 @@ struct Fixture {
         this->menu.frame(state);
     }
 
-    /* One frame on Rumble: each controller's connection and rumble, every
-     * one on its own panel, and the line at the screen's foot unless texts
-     * is false. */
-    void rumble_frame(const Panels& panels, bool texts = true) {
+    /* One frame on Rumble: each controller's connection, rumble and place,
+     * the names list, its hovered name in slot scroll + row as the game
+     * keeps it, and the line at the screen's foot unless texts is false. */
+    void rumble_frame(const Panels& panels, const NamesList& list = {}, bool texts = true) {
         Bytes bottom = texts ? game_text(kRumbleBottomText) : Bytes{};
         A11yMenuState state{};
         state.menu = kRumble;
         for (std::size_t port = 0; port < panels.size(); port++) {
             state.rumble.ports[port].connected = panels[port].connected;
             state.rumble.ports[port].rumble = panels[port].rumble;
+            state.rumble.ports[port].in_names = panels[port].in_names;
+        }
+        state.rumble.name_count = static_cast<int>(list.names.size());
+        state.rumble.names_row = list.row;
+        state.rumble.names_scroll = list.scroll;
+        std::size_t slot = static_cast<std::size_t>(list.scroll + list.row);
+        state.rumble.name_slot = -1;
+        if (slot < list.names.size()) {
+            const Name& name = list.names[slot];
+            assert(name.tag.size() < sizeof state.rumble.name);
+            std::copy(name.tag.begin(), name.tag.end(), state.rumble.name);
+            state.rumble.name_slot = static_cast<int>(slot);
+            state.rumble.name_rumble = name.rumble;
         }
         state.rumble.bottom_line = bottom.empty() ? nullptr : bottom.data();
         this->menu.frame(state);
@@ -1388,13 +1415,175 @@ void rumble_reopening_says_the_opening_again() {
 
 void rumble_missing_bottom_line_is_logged() {
     Fixture f;
-    f.rumble_frame(one_controller(), false);
+    f.rumble_frame(one_controller(), {}, false);
     f.frame(kSettings, 0, kRumbleEntryText);
-    f.rumble_frame(one_controller(), false);
+    f.rumble_frame(one_controller(), {}, false);
     assert((f.spoken() == Texts{std::string("Rumble. P1: On. ") + kRumbleKeys,
                               "Options. Rumble. Turn rumble on or off.",
                               std::string("Rumble. P1: On. ") + kRumbleKeys}));
     assert(count_logged("[a11y] menu 19 bottom line: no description") == 1);
+}
+
+constexpr const char* kRumbleKeysWithNames = "A to turn on or off, right for the names list.";
+
+/* Ten names, more than the eight shown, their rumble on and off by turns. */
+NamesList ten_names() {
+    NamesList list;
+    const char* names[] = {"Ann", "Bob", "Cy", "Dee", "Eve", "Fay", "Gus", "Hal", "Ivy", "Jo"};
+    bool rumble = true;
+    for (const char* name : names) {
+        list.names.push_back(Name{name, rumble});
+        rumble = !rumble;
+    }
+    return list;
+}
+
+/* P1 alone, on the names list or its own panel. */
+Panels p1(bool in_names) {
+    Panels panels = one_controller();
+    panels[0].in_names = in_names;
+    return panels;
+}
+
+void rumble_opens_with_names_and_the_names_list_hint() {
+    Fixture f;
+    f.rumble_frame(one_controller(), ten_names());
+    assert((f.spoken() ==
+            Texts{std::string("Rumble. P1: On. ") + kRumbleKeysWithNames + " " + kRumbleBottom}));
+}
+
+void rumble_enters_and_leaves_the_names_list() {
+    Fixture f;
+    NamesList list = ten_names();
+    f.rumble_frame(p1(false), list);
+    f.spoken();
+    f.rumble_frame(p1(true), list);
+    f.rumble_frame(p1(true), list);
+    f.rumble_frame(p1(false), list);
+    f.rumble_frame(p1(false), list);
+    /* Back in on the name the cursor was left on. */
+    list.row = 1;
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{"Names. Ann: On", "P1: On", "Names. Bob: Off"}));
+}
+
+void rumble_moves_and_scrolls_down_the_names_list() {
+    Fixture f;
+    NamesList list = ten_names();
+    f.rumble_frame(p1(true), list);
+    f.spoken();
+    for (list.row = 1; list.row <= 7; list.row++) {
+        f.rumble_frame(p1(true), list);
+    }
+    list.row = 7;
+    for (list.scroll = 1; list.scroll <= 2; list.scroll++) {
+        f.rumble_frame(p1(true), list);
+    }
+    /* The last name: Down does nothing, and nothing is said. */
+    list.scroll = 2;
+    f.rumble_frame(p1(true), list);
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{"Bob: Off", "Cy: On", "Dee: Off", "Eve: On", "Fay: Off", "Gus: On",
+                              "Hal: Off", "Ivy: On", "Jo: Off"}));
+}
+
+void rumble_moves_and_scrolls_up_the_names_list() {
+    Fixture f;
+    NamesList list = ten_names();
+    list.row = 7;
+    list.scroll = 2;
+    f.rumble_frame(p1(true), list);
+    f.spoken();
+    for (list.row = 6; list.row >= 0; list.row--) {
+        f.rumble_frame(p1(true), list);
+    }
+    list.row = 0;
+    for (list.scroll = 1; list.scroll >= 0; list.scroll--) {
+        f.rumble_frame(p1(true), list);
+    }
+    /* The first name: Up does nothing, and nothing is said. */
+    list.scroll = 0;
+    f.rumble_frame(p1(true), list);
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{"Ivy: On", "Hal: Off", "Gus: On", "Fay: Off", "Eve: On", "Dee: Off",
+                              "Cy: On", "Bob: Off", "Ann: On"}));
+}
+
+void rumble_switches_a_name() {
+    Fixture f;
+    NamesList list = ten_names();
+    list.row = 2;
+    f.rumble_frame(p1(true), list);
+    f.spoken();
+    list.names[2].rumble = false;
+    f.rumble_frame(p1(true), list);
+    f.rumble_frame(p1(true), list);
+    list.names[2].rumble = true;
+    f.rumble_frame(p1(true), list);
+    /* P1's own rumble is not the name's. */
+    assert((f.spoken() == Texts{"Off", "On"}));
+}
+
+void rumble_name_with_no_words_says_its_slot() {
+    Fixture f;
+    NamesList list = ten_names();
+    /* A kanji the decoder has no name for, and then nothing at all. */
+    list.names[1].tag = "\x88\x9F";
+    list.names[2].tag = "";
+    f.rumble_frame(p1(true), list);
+    f.spoken();
+    list.row = 1;
+    f.rumble_frame(p1(true), list);
+    list.row = 2;
+    f.rumble_frame(p1(true), list);
+    list.row = 1;
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{"Name 2: Off", "Name 3: On", "Name 2: Off"}));
+    assert(count_logged("[a11y] menu 19 name 2: \"{sjis 889F}\", unknown glyphs left out") == 1);
+    assert(count_logged("[a11y] menu 19 name 2: no words, said as its slot") == 1);
+    assert(count_logged("[a11y] menu 19 name 3: no words, said as its slot") == 1);
+}
+
+void rumble_names_decode_shift_jis() {
+    Fixture f;
+    NamesList list;
+    /* Full-width ＡＮＮ, as the name keyboard writes it. */
+    list.names.push_back(Name{"\x82\x60\x82\x6D\x82\x6D", false});
+    f.rumble_frame(p1(false), list);
+    f.spoken();
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{"Names. ANN: Off"}));
+}
+
+void rumble_second_controller_in_the_names_list() {
+    Fixture f;
+    NamesList list = ten_names();
+    Panels panels = four_controllers();
+    panels[0].in_names = true;
+    f.rumble_frame(panels, list);
+    f.spoken();
+    /* P2 joins P1 on the one cursor, and P3 switches its own rumble. */
+    panels[1].in_names = true;
+    panels[2].rumble = false;
+    f.rumble_frame(panels, list);
+    /* Either one moves the shared cursor. */
+    list.row = 1;
+    f.rumble_frame(panels, list);
+    panels[0].in_names = false;
+    f.rumble_frame(panels, list);
+    assert((f.spoken() == Texts{"Names. Ann: On. P3: Off", "Bob: Off", "P1: On"}));
+}
+
+void rumble_reopening_in_the_names_list_says_the_name() {
+    Fixture f;
+    NamesList list = ten_names();
+    list.row = 3;
+    f.rumble_frame(p1(true), list);
+    f.spoken();
+    f.menu.forget();
+    f.rumble_frame(p1(true), list);
+    assert((f.spoken() == Texts{std::string("Rumble. P1: On. Names. Dee: Off. ") +
+                                kRumbleKeysWithNames + " " + kRumbleBottom}));
 }
 
 void plain_capitals_keeps_abbreviations() {
@@ -1494,6 +1683,15 @@ int main() {
     rumble_unchanged_frames_say_nothing();
     rumble_reopening_says_the_opening_again();
     rumble_missing_bottom_line_is_logged();
+    rumble_opens_with_names_and_the_names_list_hint();
+    rumble_enters_and_leaves_the_names_list();
+    rumble_moves_and_scrolls_down_the_names_list();
+    rumble_moves_and_scrolls_up_the_names_list();
+    rumble_switches_a_name();
+    rumble_name_with_no_words_says_its_slot();
+    rumble_names_decode_shift_jis();
+    rumble_second_controller_in_the_names_list();
+    rumble_reopening_in_the_names_list_says_the_name();
     plain_capitals_keeps_abbreviations();
     std::cout << "menu_speech: all tests passed\n";
     return 0;

@@ -42,6 +42,7 @@
 #include <melee/lb/lbspdisplay.h>
 #include <melee/mn/forward.h>
 #include <melee/mn/mnmain.h>
+#include <melee/mn/mnname.h>
 #include <melee/mn/mnonline.h>
 #include <melee/mn/types.h>
 #include <melee/mp/mplib.h>
@@ -156,6 +157,8 @@ struct a11y_rumble_head {
 
 /* The line at Rumble's foot (mnVibration_CreateScreen). */
 enum { A11Y_RUMBLE_BOTTOM_TEXT = 0xA7 };
+
+static void copy_name_tag(int tag, char* out);
 
 /* The main menu's strings sit in font slot 0 (mnMain_Scene_OnEnter). */
 enum { A11Y_MENU_FONT = 0 };
@@ -316,6 +319,20 @@ static void rumble_state(A11yRumble* out) {
         out->ports[port].connected = data->connected[port] != 0;
         out->ports[port].in_names = data->place[port] != 0;
         out->ports[port].rumble = GetRumbleSettingOfPort(port) != 0;
+    }
+    /* The list shows the name tag slots from scroll_offset on, row by row
+     * (mnVibration_GetNameSlot), with no gaps to skip: Name Entry puts a
+     * new name in the slot numbered by the count of names
+     * (mnName_MainInput), and DeleteName moves the later names down. */
+    out->name_count = GetNameCount();
+    out->names_row = data->names_row;
+    out->names_scroll = data->scroll_offset;
+    out->name_slot = -1;
+    int slot = data->scroll_offset + data->names_row;
+    if (slot < out->name_count) {
+        out->name_slot = slot;
+        copy_name_tag(slot, out->name);
+        out->name_rumble = GetPersistentNameData(slot)->rumble_enabled != 0;
     }
     out->bottom_line = menu_string(A11Y_RUMBLE_BOTTOM_TEXT);
 }
