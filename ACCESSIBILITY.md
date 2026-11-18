@@ -237,3 +237,93 @@ carrying a coin puts it back where it was.
 2. Set the CPU's level with its slider.
 3. Choose your own character.
 4. Once every slot has a character, press Start. Stage select comes next.
+
+## Online play
+
+You can play VS. matches online against other Non-Visual Melee players and
+against sighted players using melee-pc, as long as you both have the same
+version and the same disc image. Both are found under VS. Mode, Online.
+
+### How it works
+
+There is no game server. Your computer connects straight to your friend's
+computer (peer to peer), and both computers run the match side by side,
+sending each other only the controller presses. When a press arrives late,
+the game quietly corrects itself, so the match stays the same on both sides.
+This is called rollback. A lower ping between you two gives a smoother match,
+so playing someone nearby works best.
+
+The match uses the rules of player 1, the player who started the session, items
+included.
+
+### LAN play
+
+LAN play finds other players on the same home network by itself. Choose LAN
+play and the game lists the computers it finds and says when one appears or
+leaves. When at least one other player is found, press Start to begin; the one
+who presses Start becomes player 1, and the other follows.
+
+### Direct Connect
+
+Direct Connect plays with a friend over the internet using connect codes.
+
+- **Your connect code.** Every player has one: a name followed by # and eight
+  letters and digits. The eight characters stay the same, so you can share
+  your code once and reuse it. On the Direct Connect screen, Y copies your
+  code so you can paste it into a chat message to your friend. The Online
+  category of the launcher's Settings also shows it.
+- **Your name.** The name part is your Player name, up to eight letters or
+  digits, set in the Online category of the launcher's Settings or the port
+  menu. It only shows who you are; changing it keeps your eight characters,
+  and a friend calling you types only those.
+- **Calling.** One of you chooses Enter a friend's code and types the other's
+  code, or chooses Call from clipboard when the code has been copied. The other
+  either chooses Wait for a friend to call me or calls back the same way. Both
+  work: two players who call each other at the same time also find each other.
+- **Recent opponents.** People you have played before stay in the list, so
+  calling them again is one press.
+- **Waiting.** Finding each other usually takes some seconds, sometimes longer.
+  While the game waits, it repeats what it is doing from time to time, so you
+  know it has not stopped.
+
+### Limitations
+
+Because there is no server in between, the two computers must be able to reach
+each other through their routers. Most home networks allow this, but not every
+network does.
+
+- **Some networks can't be reached.** Some mobile and phone connections, and
+  many workplace, school and dormitory networks, hide computers in a way that
+  stops a direct connection. A VPN can also get in the way. If one of you is on
+  such a network, a connection may still work when the other's network is
+  more open; if both are, it won't.
+- **No relay fallback.** If a direct connection fails, there is no server to
+  route the match through instead.
+- **Two players at the same home.** Direct Connect usually fails between two
+  computers behind the same router. Use LAN play instead.
+- **Ranked and Unranked.** The matchmaking modes, which find you a stranger to
+  play, are not read aloud yet.
+
+### Checking your connection
+
+`melee-netcheck.exe`, in the same folder as `melee.exe`, checks whether your
+network suits Direct Connect. It is a plain console program, read by your
+screen reader, and the check takes up to a quarter of a minute.
+
+1. Run `melee-netcheck.exe`. If Windows asks whether to allow it on networks,
+   choose Allow.
+2. It asks servers on the internet how they see your computer and ends with a
+   result: good, likely trouble, blocked, not sure or no internet, each with a
+   short explanation.
+3. Then, if you like, you can test with a friend: you both run the program, and
+   each types the other's address. The program tells you your own address and
+   copies it to the clipboard, so you can send it to your friend; keep the
+   window open meanwhile, as the address holds only while it runs. It reports
+   whether you reached each other both ways, one way only or not at all, and
+   how long a round trip took.
+
+The friend test is optional. If both of you get a good result, just go ahead
+and try Direct Connect in the game. The test helps when a call fails or a
+result was not good, to find which side has the problem. Everything the
+program says is also saved in `melee-netcheck-result.txt` beside it, so your
+friend can send you their results.
