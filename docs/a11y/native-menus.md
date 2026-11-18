@@ -478,6 +478,13 @@ Three of Options' five screens keep their state to themselves, out of reach of t
 - **Erased marks.** An erased row is marked in `x3` until the screen closes; reopening it clears every mark. The mark shows only as the row's bar staying dim while hovered, and A on a marked row does nothing, without a sound. Erase All marks every row.
 - **The highlight.** In the base port the drawn YES and NO highlight does not match the choice: both boxes lit while No is chosen, NO lit while Yes is. The fork speaks `x2`, never the drawing; a fix would help every player and is not the fork's to make here.
 
+### Rumble
+
+- **State.** The user data of the global `mnVibration_804D6C28` (`MnVibrationData`, declared only in `mnvibration.c`): `x0[0]` the intro timer, `x0[1]` the names list's cursor row, `x0[2 + port]` each controller's place, 0 its own panel and 1 the names list (the decomp's comment calls it a rumble toggle; the input code shows it is the place), `x6[port]` whether the controller is plugged in, and `scroll_offset` the first name shown. Each controller's rumble is not in it but in the save (`GetRumbleSettingOfPort`). B frees the gobj at once and leaves the global as it was, so the fork reads it (`a11y_game_menu_state`) only while `cur_menu` is Rumble, as Erase Data's; the gobj is made in the same call that sets `cur_menu`, so the arrival frame sees it.
+- **Controllers.** Each acts alone. A on its panel switches its rumble, and turning it on buzzes it. `x6` is set from `HSD_PadCopyStatus` as the screen opens and kept up to date by the screen's think function once the intro has played; a controller plugged in goes back to its panel. An unplugged controller's panel shows a red cross and no value, and the speech leaves it out of the opening. The drivers reach port 1 alone (its virtual pad is plugged in, the other three are not), so more than one controller is checked by the unit tests.
+- **Input.** The screen ignores input for its cooldown and then until its intro timer passes, about a second in all. Right takes a controller to the names list and Left back, only while there are names (`GetNameCount()`); with none, Right does nothing, without a sound.
+- **The words.** The panels and values are pictures, each panel labelled P1 to P4. The line at the foot is SdMenu 0xA7, "Player name entry must precede Rumble setting.", drawn always, with or without names, and directly, not through `Menu_InitCenterText`, so the fork reads it by number.
+
 ## Candidate hook points
 
 Speculative: places the code offers, not decisions.

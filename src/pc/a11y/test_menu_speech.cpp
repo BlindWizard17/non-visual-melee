@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Menu speech against a fake screen reader bridge, fed snapshots of the main
  * menu tree written by hand, the leaf screens with readers of their own
- * (Language, Erase Data) included. Links menu_speech.cpp, its leaf readers,
+ * (Language, Erase Data, Rumble) included. Links menu_speech.cpp, its leaf readers,
  * menu_names.cpp and the names tables it uses, game_text.cpp and speech.cpp
  * only, so this file supplies the pc_log_line that main.c normally
  * provides. */
@@ -60,6 +60,8 @@ constexpr int kSound = 20;
 constexpr int kDisplay = 21;
 constexpr int kLanguage = 23;
 constexpr int kEraseData = 24;
+constexpr int kRecords = 28;
+constexpr int kRecordsVs = 30;
 constexpr int kMultiMan = 33;
 constexpr int kOnline = 34;
 
@@ -88,6 +90,15 @@ constexpr std::array<const char*, A11Y_ERASE_ROWS> kEraseTexts = {
 constexpr const char* kErasePromptText = "Erase?";
 constexpr const char* kEraseSureText = "Are you sure?";
 using Erased = std::array<bool, A11Y_ERASE_ROWS>;
+
+/* Rumble's controllers, and the line at its foot. */
+struct Panel {
+    bool connected = false;
+    bool rumble = true;
+};
+using Panels = std::array<Panel, A11Y_RUMBLE_PORTS>;
+constexpr const char* kRumbleEntryText = "Turn rumble on or off.";
+constexpr const char* kRumbleBottomText = "Player name entry must precede\nRumble setting.";
 constexpr const char* kChannelText = "Choose between Stereo\nand Mono sound.";
 constexpr const char* kVolumeText = "Adjust music and sound\neffect volume balance.";
 constexpr const char* kDeflickerText =
@@ -277,6 +288,21 @@ struct Fixture {
         this->menu.frame(state);
     }
 
+    /* One frame on Rumble: each controller's connection and rumble, every
+     * one on its own panel, and the line at the screen's foot unless texts
+     * is false. */
+    void rumble_frame(const Panels& panels, bool texts = true) {
+        Bytes bottom = texts ? game_text(kRumbleBottomText) : Bytes{};
+        A11yMenuState state{};
+        state.menu = kRumble;
+        for (std::size_t port = 0; port < panels.size(); port++) {
+            state.rumble.ports[port].connected = panels[port].connected;
+            state.rumble.ports[port].rumble = panels[port].rumble;
+        }
+        state.rumble.bottom_line = bottom.empty() ? nullptr : bottom.data();
+        this->menu.frame(state);
+    }
+
     void leaf_frame(int menu, const Leaf& leaf) {
         Bytes bytes = leaf.text != nullptr ? game_text(leaf.text) : Bytes{};
         A11yMenuState state{};
@@ -392,15 +418,15 @@ void screen_change_and_cursor_move_in_one_step_is_the_screen() {
 
 void leaf_screen_says_its_name_and_the_return_speaks() {
     Fixture f;
-    f.frame(kSettings, 0, "Turn rumble on or off.");
+    f.frame(kRecords, 0, "Check out VS. records.");
     f.spoken();
-    f.frame(kRumble, 0);
+    f.frame(kRecordsVs, 0);
     /* The leaf screen moves its own cursor: nothing is said. */
-    f.frame(kRumble, 1);
-    f.frame(kRumble, 2);
-    f.frame(kSettings, 0, "Turn rumble on or off.");
-    assert(
-        (f.spoken() == Texts{"Rumble. No speech yet.", "Options. Rumble. Turn rumble on or off."}));
+    f.frame(kRecordsVs, 1);
+    f.frame(kRecordsVs, 2);
+    f.frame(kRecords, 0, "Check out VS. records.");
+    assert((f.spoken() == Texts{"VS. Records. No speech yet.",
+                              "Melee Records. VS. Records. Check out VS. records."}));
 }
 
 void forgetting_makes_the_same_state_an_arrival() {
@@ -1248,6 +1274,129 @@ void erase_data_unknown_row_and_missing_texts_are_logged() {
     assert(count_logged("[a11y] menu 24 row 7: no description") == 1);
 }
 
+constexpr const char* kRumbleKeys = "A to turn on or off.";
+constexpr const char* kRumbleBottom = "Player name entry must precede Rumble setting.";
+
+/* P1 alone, as with one controller plugged in. */
+Panels one_controller(bool rumble = true) {
+    Panels panels{};
+    panels[0] = Panel{true, rumble};
+    return panels;
+}
+
+Panels four_controllers() {
+    Panels panels{};
+    panels.fill(Panel{true, true});
+    return panels;
+}
+
+void rumble_opens_with_one_controller() {
+    Fixture f;
+    f.frame(kSettings, 0, kRumbleEntryText);
+    f.spoken();
+    f.rumble_frame(one_controller());
+    /* With no names, nothing about the names list. */
+    assert(
+        (f.spoken() == Texts{std::string("Rumble. P1: On. ") + kRumbleKeys + " " + kRumbleBottom}));
+}
+
+void rumble_opens_with_several_leaving_out_the_disconnected() {
+    Fixture f;
+    Panels panels{};
+    panels[0] = Panel{true, true};
+    panels[1] = Panel{false, true};
+    panels[2] = Panel{true, false};
+    panels[3] = Panel{true, true};
+    f.rumble_frame(panels);
+    assert((f.spoken() == Texts{std::string("Rumble. P1: On. P3: Off. P4: On. ") + kRumbleKeys +
+                                " " + kRumbleBottom}));
+}
+
+void rumble_opens_with_no_controller() {
+    Fixture f;
+    f.rumble_frame(Panels{});
+    assert((f.spoken() == Texts{std::string("Rumble. ") + kRumbleKeys + " " + kRumbleBottom}));
+}
+
+void rumble_switches_each_controller() {
+    Fixture f;
+    Panels panels = four_controllers();
+    f.rumble_frame(panels);
+    f.spoken();
+    for (Panel& panel : panels) {
+        panel.rumble = false;
+        f.rumble_frame(panels);
+        f.rumble_frame(panels);
+    }
+    panels[1].rumble = true;
+    f.rumble_frame(panels);
+    assert((f.spoken() == Texts{"P1: Off", "P2: Off", "P3: Off", "P4: Off", "P2: On"}));
+}
+
+void rumble_two_controllers_switching_at_once_are_said_together() {
+    Fixture f;
+    Panels panels = four_controllers();
+    f.rumble_frame(panels);
+    f.spoken();
+    panels[0].rumble = false;
+    panels[2].rumble = false;
+    f.rumble_frame(panels);
+    assert((f.spoken() == Texts{"P1: Off. P3: Off"}));
+}
+
+void rumble_controller_connects_and_disconnects() {
+    Fixture f;
+    Panels panels = one_controller();
+    f.rumble_frame(panels);
+    f.spoken();
+    panels[1] = Panel{true, false};
+    f.rumble_frame(panels);
+    f.rumble_frame(panels);
+    panels[1].rumble = true;
+    f.rumble_frame(panels);
+    panels[1].connected = false;
+    f.rumble_frame(panels);
+    f.rumble_frame(panels);
+    /* A disconnected controller's setting changing says nothing. */
+    panels[1].rumble = false;
+    f.rumble_frame(panels);
+    panels[1].connected = true;
+    f.rumble_frame(panels);
+    assert((f.spoken() == Texts{"P2: Off", "P2: On", "P2 disconnected", "P2: Off"}));
+}
+
+void rumble_unchanged_frames_say_nothing() {
+    Fixture f;
+    f.rumble_frame(one_controller());
+    f.spoken();
+    /* Right with no names: the game does nothing, and so does the reader. */
+    f.rumble_frame(one_controller());
+    f.rumble_frame(one_controller());
+    assert(f.spoken().empty());
+}
+
+void rumble_reopening_says_the_opening_again() {
+    Fixture f;
+    f.rumble_frame(one_controller());
+    f.rumble_frame(one_controller(false));
+    f.frame(kSettings, 0, kRumbleEntryText);
+    f.spoken();
+    f.rumble_frame(one_controller(false));
+    assert((
+        f.spoken() == Texts{std::string("Rumble. P1: Off. ") + kRumbleKeys + " " + kRumbleBottom}));
+}
+
+void rumble_missing_bottom_line_is_logged() {
+    Fixture f;
+    f.rumble_frame(one_controller(), false);
+    f.frame(kSettings, 0, kRumbleEntryText);
+    f.rumble_frame(one_controller(), false);
+    assert((f.spoken() == Texts{std::string("Rumble. P1: On. ") + kRumbleKeys,
+                              "Options. Rumble. Turn rumble on or off.",
+                              std::string("Rumble. P1: On. ") + kRumbleKeys}));
+    assert(count_logged("[a11y] menu 19 bottom line: no description") == 1);
+}
+
 void plain_capitals_keeps_abbreviations() {
     assert(a11y::plain_capitals("DIRECT CONNECT") == "Direct connect");
     assert(a11y::plain_capitals("LAN PLAY") == "LAN play");
@@ -1336,6 +1485,15 @@ int main() {
     erase_all_no_on_either_prompt_closes_silently();
     erase_data_prompt_keys_again_after_reopening();
     erase_data_unknown_row_and_missing_texts_are_logged();
+    rumble_opens_with_one_controller();
+    rumble_opens_with_several_leaving_out_the_disconnected();
+    rumble_opens_with_no_controller();
+    rumble_switches_each_controller();
+    rumble_two_controllers_switching_at_once_are_said_together();
+    rumble_controller_connects_and_disconnects();
+    rumble_unchanged_frames_say_nothing();
+    rumble_reopening_says_the_opening_again();
+    rumble_missing_bottom_line_is_logged();
     plain_capitals_keeps_abbreviations();
     std::cout << "menu_speech: all tests passed\n";
     return 0;

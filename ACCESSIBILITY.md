@@ -40,16 +40,21 @@ included.
 - **The game's menus.** The main menu and the menus under it, such as 1P Mode
   and VS. Mode, say each screen's name, the option you are on and the game's
   description of it.
-  - **Options.** Sound, Screen Display, Language and Erase Data are read.
-    Switching the game to Japanese makes the game's own text Japanese, such as
-    the menus' descriptions, and speech can read it only in part; Non-Visual
-    Melee's own words stay English.
+  - **Options.** Sound, Screen Display, Language, Erase Data and Rumble are
+    read. Switching the game to Japanese makes the game's own text Japanese,
+    such as the menus' descriptions, and speech can read it only in part;
+    Non-Visual Melee's own words stay English.
   - **Erase Data.** Up and down move through the kinds of data, each with the
     game's description, and A opens the prompt "Erase?", which starts on No:
     left and right choose, A confirms. Erase All asks a second time, "Are you
     sure?", again starting on No. Nothing is said once data is erased: the
     game's erase sound is the confirmation. A row you have erased says
     "erased" until you leave the screen, and A on it does nothing.
+  - **Rumble.** The screen opens with each plugged-in controller's rumble, such
+    as "P1: On", and A on any controller switches its own rumble. A controller
+    plugged in or unplugged while the screen is up is said. The list of names
+    beside the controllers, which has a rumble setting per name, is not read
+    yet.
 - **Character select and stage select.** On these screens the game has you move
   a free cursor around the screen rather than step through a list. Here the
   D-pad steps the cursor from one thing on the screen to the next, saying where

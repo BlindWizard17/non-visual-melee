@@ -10,11 +10,11 @@
  * Random Stage draw no description; a row with a hint of its own (the item
  * frequency) says it the first time it is reached after the screen opens,
  * and a refused change (Random Stage's last stage) says why. Coming back
- * from a screen a row opens is an opening without the hint. Language and
- * Erase Data keep their state to themselves and have readers of their own
- * (leaf_reader.hpp), and the language changing is said before the next
- * opening. Any other leaf screen
- * opening says its name and "No speech yet."
+ * from a screen a row opens is an opening without the hint. Language,
+ * Erase Data and Rumble keep their state to themselves and have readers of
+ * their own (leaf_reader.hpp), and the language changing is said before the
+ * next opening. Any other leaf screen opening says its name and "No speech
+ * yet."
  * (.scratch/main-menu-tree/spec.md, .scratch/rules-screens/spec.md,
  * .scratch/options-screens/spec.md). It compares each snapshot with the
  * previous one and touches no game state itself. */
@@ -24,6 +24,7 @@
 #include "game_text.hpp"
 #include "language_reader.hpp"
 #include "leaf_reader.hpp"
+#include "rumble_reader.hpp"
 #include "speech.hpp"
 #include <cstdint>
 #include <optional>
@@ -78,6 +79,7 @@ private:
     MenuText m_text;
     LanguageReader m_language{m_text};
     EraseDataReader m_erase_data{m_text};
+    RumbleReader m_rumble{m_text};
     bool m_seen = false;
     int m_menu = 0;
     int m_hovered = 0;

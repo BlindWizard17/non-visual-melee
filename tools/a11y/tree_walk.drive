@@ -1,7 +1,7 @@
 # Walks every tree screen of the main menu tree and waits on each
 # announcement, so a missing or changed line fails the run. Also opens one
-# leaf screen (Rumble) and goes into character select and back. Run with the
-# default --scene title:
+# leaf screen without a reader (VS. Records) and goes into character select
+# and back. Run with the default --scene title:
 #   python tools/a11y/drive.py tools/a11y/tree_walk.drive
 # Each wait matches the start of the spoken text, the screen's and entry's
 # names; the description follows them.
@@ -172,7 +172,7 @@ press B
 wait '"Main Menu\. Trophies\. '
 sleep 0.3
 
-# Options, and one leaf screen without a reader.
+# Options.
 press Down
 wait '"Options\. '
 press A
@@ -188,17 +188,12 @@ press Down
 wait '"Erase Data\. '
 press Down
 wait '"Rumble\. '
-press A
-wait '"Rumble\. No speech yet\."'
-sleep 1
-press B
-wait '"Options\. Rumble\. '
-sleep 0.3
 press B
 wait '"Main Menu\. Options\. '
 sleep 0.3
 
-# Data, with Melee Records under it. Sound Test is unlocked like All-Star.
+# Data, with Melee Records under it and one leaf screen without a reader.
+# Sound Test is unlocked like All-Star.
 press Down
 wait '"Data\. '
 press A
@@ -211,6 +206,12 @@ wait '"Sound Test\. '
 press Down
 wait '"Melee Records\. '
 press A
+wait '"Melee Records\. VS\. Records\. '
+sleep 0.3
+press A
+wait '"VS\. Records\. No speech yet\."'
+sleep 1
+press B
 wait '"Melee Records\. VS\. Records\. '
 sleep 0.3
 press Down

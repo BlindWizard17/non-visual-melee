@@ -137,6 +137,26 @@ static const u16 a11y_erase_descriptions[A11Y_ERASE_ROWS] = {0xC0, 0xC1, 0xC2, 0
  * fn_8024F318). */
 enum { A11Y_ERASE_PROMPT_TEXT = 318, A11Y_ERASE_SURE_TEXT = 319 };
 
+/* Rumble's gobj (mnvibration.c), declared in no header; B frees it and
+ * leaves the pointer as it was, so it is read only while Rumble is the
+ * screen. */
+extern HSD_GObj* mnVibration_804D6C28;
+
+/* The head of that gobj's user data, as mnvibration.c declares it
+ * (MnVibrationData, in no header): the intro timer, the names list's cursor
+ * row, each controller's place (0 its panel, 1 the names list), each
+ * controller's connection, and the names list's scroll. */
+struct a11y_rumble_head {
+    u8 intro_timer;
+    u8 names_row;
+    u8 place[A11Y_RUMBLE_PORTS];
+    u8 connected[A11Y_RUMBLE_PORTS];
+    u8 scroll_offset;
+};
+
+/* The line at Rumble's foot (mnVibration_CreateScreen). */
+enum { A11Y_RUMBLE_BOTTOM_TEXT = 0xA7 };
+
 /* The main menu's strings sit in font slot 0 (mnMain_Scene_OnEnter). */
 enum { A11Y_MENU_FONT = 0 };
 
@@ -286,6 +306,20 @@ static void erase_data_state(A11yEraseData* out) {
     }
 }
 
+static void rumble_state(A11yRumble* out) {
+    memset(out, 0, sizeof(*out));
+    if (mnVibration_804D6C28 == NULL || mnVibration_804D6C28->user_data == NULL) {
+        return;
+    }
+    const struct a11y_rumble_head* data = mnVibration_804D6C28->user_data;
+    for (int port = 0; port < A11Y_RUMBLE_PORTS; port++) {
+        out->ports[port].connected = data->connected[port] != 0;
+        out->ports[port].in_names = data->place[port] != 0;
+        out->ports[port].rumble = GetRumbleSettingOfPort(port) != 0;
+    }
+    out->bottom_line = menu_string(A11Y_RUMBLE_BOTTOM_TEXT);
+}
+
 void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* out) {
     MenuKind menu = (MenuKind)mn_804A04F0.cur_menu;
     int hovered = mn_804A04F0.hovered_selection;
@@ -315,6 +349,11 @@ void a11y_game_menu_state(int center_text, int language_cursor, A11yMenuState* o
         erase_data_state(&out->erase);
     } else {
         memset(&out->erase, 0, sizeof(out->erase));
+    }
+    if (menu == MENU_KIND_SETTINGS_RUMBLE) {
+        rumble_state(&out->rumble);
+    } else {
+        memset(&out->rumble, 0, sizeof(out->rumble));
     }
     /* The same precedence as mn_80229A7C, which draws the description line:
      * the base port's text first, then SdMenu's by the table's number. */

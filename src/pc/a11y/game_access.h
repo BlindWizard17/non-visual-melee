@@ -87,6 +87,30 @@ typedef struct A11yEraseData {
     const uint8_t* prompt_text;
 } A11yEraseData;
 
+/* Rumble's controller panels, P1 to P4. */
+enum { A11Y_RUMBLE_PORTS = 4 };
+
+/* One controller on Rumble, from the screen's gobj (mnvibration.c). */
+typedef struct A11yRumblePort {
+    /* The controller is plugged in, as the screen last saw it; its panel
+     * shows a red cross and no value while it is not. */
+    bool connected;
+    /* Its place: in the names list, or on its own panel, where each
+     * controller opens. */
+    bool in_names;
+    /* Its rumble setting (GetRumbleSettingOfPort). */
+    bool rumble;
+} A11yRumblePort;
+
+/* Rumble (mnvibration.c), from its gobj's user data, read only while it is
+ * the screen; all zero elsewhere. */
+typedef struct A11yRumble {
+    A11yRumblePort ports[A11Y_RUMBLE_PORTS];
+    /* The line the screen always draws at its foot, "Player name entry must
+     * precede Rumble setting.", as game text, or NULL. */
+    const uint8_t* bottom_line;
+} A11yRumble;
+
 /* What the main menu tree shows, read once a frame by the menu reader. */
 typedef struct A11yMenuState {
     /* The menu screen (MenuKind) and its hovered entry, from mn_804A04F0. On
@@ -139,6 +163,8 @@ typedef struct A11yMenuState {
     bool language_cursor_japanese;
     /* Erase Data's state; all zero on other screens. */
     A11yEraseData erase;
+    /* Rumble's state; all zero on other screens. */
+    A11yRumble rumble;
 } A11yMenuState;
 
 /* Fills the snapshot from game memory, refused left false; center_text is

@@ -75,6 +75,8 @@ LeafReader* MenuSpeech::leaf_reader(int menu) {
         return &m_language;
     case MenuKind::MENU_KIND_SETTINGS_ERASE:
         return &m_erase_data;
+    case MenuKind::MENU_KIND_SETTINGS_RUMBLE:
+        return &m_rumble;
     default:
         return nullptr;
     }
