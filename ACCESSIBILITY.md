@@ -11,7 +11,8 @@ players on the same version.
 
 It doesn't claim parity with sighted players: the game's speed, the precision it
 asks for and the complexity of its stages make that out of reach. Even so, I
-think you can have a lot of fun with it.
+think you can have a lot of fun with it. The current best expereince is against
+a single opponent on a simple stage with items set to low or none.
 
 This is a beta. Things will change, not every part of the game is supported yet,
 and some modes, such as Adventure and Target Test, may never be fully supported.
@@ -54,19 +55,20 @@ included.
   Right switch between players, and Z says the summary of the player you are
   on.
 - **Match announcements.** During a match, two voices of their own, beside your
-  screen reader, tell you what the game's display shows: your voice speaks
-  about you, and the opponents' voice about everyone else, teammates included.
-  They say each player's damage once it settles, either on every change or only
-  when it passes a set interval, each stock lost, and each item a player
-  takes, such as "Ray Gun", with the player's name first when you face two or
-  more others, such as "CPU 2, Food". Your screen reader says
-  the time left in a timed match, at each whole minute and at 30 seconds, and
-  names each item as it appears, such as "Bob-omb", or "Food, Food, Maxim
-  Tomato" when several come at once. The
-  voices are Windows' own OneCore voices, the ones Narrator uses, Zira for you
-  and Mark for the opponents by default. In the accessibility settings you can
-  pick any OneCore voice installed on your computer, set each one's rate and
-  volume, and choose what is announced. 
+  screen reader, tell you what the game's display shows: your voice speaks about
+  you, and the opponents' voice about everyone else, teammates included.
+  - **Damage.** Each player's damage once it settles, either on every change or
+    only when it passes a set interval.
+  - **Stocks.** Each stock lost.
+  - **Items.** Each item a player takes, in that player's voice. Your screen
+    reader names each item as it appears.
+  - **Time left.** In a timed match, your screen reader says the time left at
+    each whole minute and at 30 seconds.
+  - **The voices.** Windows' own OneCore voices, the ones Narrator uses, Zira
+    for you and Mark for the opponents by default.
+  - **The settings.** In the accessibility settings you can pick any OneCore
+    voice installed on your computer, set each one's rate and volume, and
+    choose what is announced.
 - **Audio cues.** During a match, sounds of their own tell you where things
   are. Each can be switched off and its volume set in the accessibility
   settings.
@@ -87,38 +89,10 @@ included.
   - **Item appearance cue.** A sound where each item appears, from you by
     default: panned to the side it is on and higher in pitch when it is
     above you. With Items relative to you off, it pans and pitches with
-    where the item is on the stage instead. An item made from the Training
-    menu sounds as the menu closes.
+    where the item is on the stage instead. 
   - **Item's position cue.** A pulse at a steady pace from the nearest item
     lying loose, placed as the item appearance cue is, from you or on the
-    stage.
-    It quickens while the item is within reach: face the item and get close.
-    An item within reach is followed even when another lies nearer, such as
-    one just behind you, so the quick pulse is always the item you would
-    take.
-    On the ground pressing A then picks it up. In the air only a light item
-    is within reach, and only while your hands are empty: Z catches it there,
-    since A is an aerial attack. It stops when no item is left lying
-    about, and keeps going while you hold one, following the others. A
-    Starman or a Mushroom never quickens it, since you take one by walking
-    into it.
-- **Items.** With items on, in VS. Mode, Training and online, you hear each
-  item come in: your screen reader names it and the item appearance cue sounds
-  where it is. The item's position cue then leads you to the nearest one
-  lying about, and each item a player takes is said in that player's voice.
-  The items are the ones Item Switch lists, containers such as the Capsule,
-  Crate and Barrel included, and whatever comes out of a broken container.
-  A heavy item, such as a Crate, is followed only once it has landed.
-  - **The settings.** Under Match announcement settings, Item appearances and
-    Item pickups switch the two announcements. Under Cue settings, Item
-    appearance cue and Item's position cue each have a switch, a volume and
-    a Preview, and Items relative to you, after them, chooses whether both
-    cues place an item from you, the default, or on the stage.
-  - **Not yet:** a character's own items, such as Peach's turnips and Link's
-    bombs, Pokémon from a Poké Ball, and stage hazards. An item that
-    disappears or is used up is not said either.
-  - **Online** matches have items at player 1's Item Switch settings, as
-    offline; Ranked plays without items.
+    stage. It quickens while the item is within reach.
 
 ### What is not included
 
@@ -210,7 +184,8 @@ change the controller's buttons in the Controls category of the port menu.
 Character select is where each player chooses a character before a match. It
 is not a list: the game has each player move a hand, a pointer like a mouse
 cursor, around one screen with the stick. Non-Visual Melee lets you step the
-hand from one thing on the screen to the next with the D-pad instead.
+hand from one thing on the screen to the next with the D-pad instead (T, F, G, H
+on keyboard). The stage select works in the same way.
 
 ### The layout
 
@@ -220,17 +195,8 @@ The screen has three bands, from top to bottom.
   for all and a team match (VS. modes only), the rules header, which says the
   current rules, such as "2-minute KO fest!", and opens Custom Rules, and Back,
   which returns to the menu.
-- **The portraits.** A picture of each character, in three rows. With every
-  character unlocked:
-  - Top row: Dr. Mario, Mario, Luigi, Bowser, Peach, Yoshi, DK, C. Falcon,
-    Ganondorf.
-  - Middle row: Falco, Fox, Ness, Ice Climbers, Kirby, Samus, Zelda, Link,
-    Young Link.
-  - Bottom row: Pichu, Pikachu, Jigglypuff, Mewtwo, Mr. Game & Watch, Marth,
-    Roy.
-
-  A character not yet unlocked is left out, and the D-pad skips it. Sheik is
-  played by choosing Zelda.
+- **The portraits.** A picture of each character, in two rows to start with
+  expanding to three after you unlokc new characters. 
 - **The player slots.** Four slots along the bottom, players 1 to 4 from left
   to right. Each has a button that switches the slot between human, CPU and
   closed, and in a team match a team button. A CPU's slot also has a slider for
@@ -271,5 +237,3 @@ carrying a coin puts it back where it was.
 2. Set the CPU's level with its slider.
 3. Choose your own character.
 4. Once every slot has a character, press Start. Stage select comes next.
-
-This readme is a work in progress; its content is being planned.
