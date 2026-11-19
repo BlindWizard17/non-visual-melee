@@ -1,6 +1,6 @@
 # 05 Play test by ear
 
-Status: ready-for-human
+Status: resolved (2026-11-19)
 Type: task
 Blocked by: 04
 
@@ -26,3 +26,9 @@ The review of issues 01 to 04 left these for the maintainer, most pressing first
 - **The names list's keys.** Nothing on Rumble says that Up and Down move through the names and Left goes back; only `ACCESSIBILITY.md` does. Options: leave it; or say the keys on the first entry of a visit, as Erase Data does with its prompt's keys. Recommended: judge by ear first; add them if entering the list leaves you unsure.
 - **Other readers' font glyph names in Japanese.** `MenuText` now gives the decoder no glyph names while the game is in Japanese, but the unlock notices (`prize_font_glyphs`, `unlock_speech.cpp`) and results (`results_speech.hpp`) still pass the English table's, and their tables are Japanese too after the switch, so a kanji at 0x4000 or 0x4002 would be said as é or II. Options: one helper in `game_text` that picks the glyph names by the saved language, used by all three readers; or a separate issue for Japanese mode, which the spec leaves out. Recommended: the helper, as its own small change outside this feature.
 - **`MenuText`'s name and home.** It lives in `leaf_reader.hpp` though `MenuSpeech` owns it, beside an unrelated `menu_text.hpp`; its `description()` also speaks prompts and bottom lines and logs them as "description". Options: move it into `menu_text.hpp` and rename the method (`spoken`), touching the four readers; or leave it. Recommended: the move, at the next change to these readers.
+
+### 2026-11-19, play test (maintainer)
+
+The maintainer played Rumble, Language and Erase Data by ear with NVDA and found no issues; the spec's wording stands.
+
+- **The review's items above.** The play test raised none of them, so the names list keeps its wording ("Names. ANNA: On", with no controller label) and says no keys. The font glyph names of the unlock notices and results in Japanese are a separate change outside this feature, proposed as its own session. `MenuText`'s move waits for the next change to these readers.
