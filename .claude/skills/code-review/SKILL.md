@@ -7,7 +7,7 @@ A review here judges a change against its intent, not the letter of its spec. A 
 
 ## 1. Pin the target
 
-- An argument naming a commit, range or branch is the target: `git show <commit>`, `git diff <range>`, or `git diff master...<branch>`.
+- An argument naming a commit, range or branch is the target: `git show <commit>`, `git diff <range>`, or `git diff dev...<branch>`.
 - With no argument, the target is the uncommitted work (`git diff HEAD`, plus the untracked files `git status` lists), or the latest commit (`git show HEAD`) when the tree is clean.
 - Any focus instructions in the argument ("focus on the coin logic") go to every reviewer.
 

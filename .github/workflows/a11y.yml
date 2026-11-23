@@ -1,12 +1,16 @@
-# The fork's CI release: every push to master builds the Windows x86_64
-# package and the macOS packages (arm64, and Intel, which nobody tests), and
-# publishes them together as the rolling prerelease ci-latest, so the newest
-# build is one plain download link away.
+# The fork's CI release. Each trigger:
+#
+# - A push to dev, the branch everyday work lands on, builds the Windows
+#   x86_64 package and the macOS packages (arm64, and Intel, which nobody
+#   tests) and publishes them together as the rolling prerelease ci-latest,
+#   so the newest build is one plain download link away.
+# - A push to master builds nothing: master moves only when a release is
+#   cut (ADR-0011).
+# - A dispatch on any branch (`gh workflow run a11y.yml --ref <branch>`)
+#   builds and keeps its zips as run artifacts and leaves ci-latest alone.
 #
 # Each build job keeps its zip as a run artifact; the publish job alone
-# writes the release, and only on a push to master. A run anywhere else
-# (a dispatch on any branch) builds and keeps its zips as run
-# artifacts and leaves ci-latest alone.
+# writes the release, and only on a push to dev.
 #
 # The Windows zip is the one that must ship: publish needs the Windows job to
 # pass, and takes whichever macOS zips were built. A failed macOS job leaves
@@ -22,8 +26,8 @@ name: A11y
 
 on:
   push:
-    branches: [master]
-  # Any other branch: `gh workflow run a11y.yml --ref <branch>`.
+    branches: [dev]
+  # Any branch: `gh workflow run a11y.yml --ref <branch>`.
   workflow_dispatch:
 
 permissions:
@@ -31,7 +35,7 @@ permissions:
 
 # The newest push to a branch wins: an older build of the same branch still
 # running is cancelled. Each branch has its own group, so a topic branch's
-# run never cancels master's, or the other way round.
+# run never cancels dev's, or the other way round.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -249,7 +253,7 @@ jobs:
   publish:
     name: Publish ci-latest
     needs: [windows, macos]
-    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.windows.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.windows.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -270,7 +274,7 @@ jobs:
         run: |
           ls -lh dist
           {
-            echo "The newest build of master, rebuilt on every push. Not a tested release."
+            echo "The newest build of dev, rebuilt on every push. Not a tested release."
             echo
             echo "Commit ${GITHUB_SHA::7}, $(git log -1 --format=%cs):"
             echo

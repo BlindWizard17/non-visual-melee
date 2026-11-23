@@ -1,10 +1,10 @@
 ---
 name: base-merge
-description: Merge the base port's master into the fork and report what changed upstream, ranked by what matters to the accessibility work.
+description: Merge the base port's master into the fork's dev branch and report what changed upstream, ranked by what matters to the accessibility work.
 disable-model-invocation: true
 ---
 
-A base merge brings `upstream/master` into `master` (see "Remotes and branches" in `CLAUDE.md`). The deliverable is two things: a clean merge with every hook and `[a11y]` line intact, and a **digest** of the base port's changes written for the maintainer, who cannot skim a diff.
+A base merge brings `upstream/master` into `dev`, the fork's working branch (see "Remotes and branches" in `CLAUDE.md`). The deliverable is two things: a clean merge with every hook and `[a11y]` line intact, and a **digest** of the base port's changes written for the maintainer, who cannot skim a diff.
 
 ## 1. Survey before merging
 
@@ -12,10 +12,10 @@ Fetch, then size the drop and read the base port's own account of it:
 
 ```
 git fetch upstream
-git log --oneline master..upstream/master
-git diff --stat master...upstream/master
-git diff master...upstream/master -- .github/RELEASE_NOTES.md README.md ROADMAP.md docs/building.md docs/testing.md docs/debugging.md tools/check_style.py tools/smoke_test.py
-git diff master...upstream/master -- src/UPSTREAM_COMMIT
+git log --oneline dev..upstream/master
+git diff --stat dev...upstream/master
+git diff dev...upstream/master -- .github/RELEASE_NOTES.md README.md ROADMAP.md docs/building.md docs/testing.md docs/debugging.md tools/check_style.py tools/smoke_test.py
+git diff dev...upstream/master -- src/UPSTREAM_COMMIT
 ```
 
 `.github/RELEASE_NOTES.md` is the base port's own account of a release; use it as the outline and the commit list as the check that nothing was left out (commits after the last tag have no notes yet). A change to `src/UPSTREAM_COMMIT` means a decomp sync: note the new commit and treat the decomp layer's diff as one bulk item. Other new or changed files under `docs/` and `tools/` get named from the stat, not read in full: `tools/test_*` and netplay fixtures are one bulk item.
@@ -25,13 +25,13 @@ Then read the code diff by layer, not as one stream. Split it into the port laye
 List the environment variables the drop adds, including new values of existing ones, for the tooling section of the digest:
 
 ```
-git diff master...upstream/master -- src tools | grep -E '^\+.*(getenv|MELEE_[A-Z0-9_]+=)'
+git diff dev...upstream/master -- src tools | grep -E '^\+.*(getenv|MELEE_[A-Z0-9_]+=)'
 ```
 
 A new `SDL_GetPrefPath` call in the port layer (other than for the shader caches, which keep `MELEE_CACHE_DIR`) bypasses `MELEE_USER_DIR`, the fork's base port fix that gives every driven run a settings folder of its own (`pc_get_pref_path` in `src/pc/paths.c`, the base port's own funnel for the settings folder, which the fix extends). Route it through `pc_get_pref_path` in the merge, or driven runs reach the maintainer's settings folder again; if the base port has taken the switch, drop the fork's version and say so:
 
 ```
-git diff master...upstream/master -- src/pc | grep -E '^\+.*SDL_GetPrefPath'
+git diff dev...upstream/master -- src/pc | grep -E '^\+.*SDL_GetPrefPath'
 ```
 
 Check the drop against the fork's CI (`.github/workflows/a11y.yml`). A new file under `.github/workflows/` would run on the fork's next push: after the merge, disable it with `gh workflow disable <name>` before pushing, and say so in the merge notes. A change to `tools/package_windows.sh`, `tools/package_macos.sh` or the base port's Windows and macOS jobs in `build.yml` may need the same change in the fork's workflow, and the fork's `prism.dll` entry in the script's DLL list must survive the merge. The fork's `a11y_melee_game` library (`a11y.cmake`) leans on two base port matches by name: `tools/gcc_launcher.py` sends a compile to GCC on a Mac when an argument holds `melee_game`, and rollback's wrappers (`cmake/*Snapshot.cmake`) and the ELF linker script take `melee_game`'s files alone; a drop that changes either match needs the library's name and its comment checked.
@@ -41,8 +41,8 @@ Check every rule in "Online compatibility" in `CLAUDE.md` against the drop: the 
 Also diff the fork's own side, so the merge notes can say whether a fork fix in a base port file is still needed or has been superseded:
 
 ```
-git diff --stat upstream/master...master
-git diff upstream/master...master -- <each base port file it lists>
+git diff --stat upstream/master...dev
+git diff upstream/master...dev -- <each base port file it lists>
 ```
 
 Record two baselines before touching anything, so step 3 can compare against them. The hook inventory:
@@ -51,11 +51,11 @@ Record two baselines before touching anything, so step 3 can compare against the
 grep -rn pc_a11y_ src --exclude-dir=a11y
 ```
 
-And a bounded `vs` run on the pre-merge build, rebuilt first with `cmake --build build` so it matches `master` (the exact command is under "Bounded runs" in the `verify` skill), with its log and stdout kept in the scratchpad. Check stdout for the line that proves the match was entered (also there). After the merge the old log cannot be regenerated without rebuilding the old commit.
+And a bounded `vs` run on the pre-merge build, rebuilt first with `cmake --build build` so it matches `dev` (the exact command is under "Bounded runs" in the `verify` skill), with its log and stdout kept in the scratchpad. Check stdout for the line that proves the match was entered (also there). After the merge the old log cannot be regenerated without rebuilding the old commit.
 
 ## 2. Merge
 
-On `master`, `git merge --no-commit --no-ff upstream/master`, so the digest can go into the merge message; without `--no-ff`, a fork with no commits since the last merge fast-forwards and there is no merge commit to hold it. Conflicts follow the `resolving-merge-conflicts` skill with one fork-specific rule from the isolation rule: in a base port file the fork owns nothing but one-line hooks, so keep theirs and re-place the hook at the semantic transition it marked. Where the base port has superseded a fork fix (as with the DLL staging in the first merge), drop the fork's version and say so in the digest. If the maintainer reported that bug to the base port, look up the issue's state with `gh issue view` and put it in the merge notes; commenting on or closing it is the maintainer's call.
+On `dev`, `git merge --no-commit --no-ff upstream/master`, so the digest can go into the merge message; without `--no-ff`, a fork with no commits since the last merge fast-forwards and there is no merge commit to hold it. Conflicts follow the `resolving-merge-conflicts` skill with one fork-specific rule from the isolation rule: in a base port file the fork owns nothing but one-line hooks, so keep theirs and re-place the hook at the semantic transition it marked. Where the base port has superseded a fork fix (as with the DLL staging in the first merge), drop the fork's version and say so in the digest. If the maintainer reported that bug to the base port, look up the issue's state with `gh issue view` and put it in the merge notes; commenting on or closing it is the maintainer's call.
 
 ## 3. Verify
 
