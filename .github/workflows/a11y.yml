@@ -6,14 +6,32 @@
 #   so the newest build is one plain download link away.
 # - A push to master builds nothing: master moves only when a release is
 #   cut (ADR-0011).
+# - A pushed tag a11y-v<version> (or a dispatch on one) builds a versioned
+#   release (ADR-0011). The release check job runs
+#   tools/a11y/release_notes.py before any build, and the run stops on a
+#   failed check, the job's log naming it: the tag must be a11y-v plus
+#   src/pc/a11y/FORK_VERSION, CHANGELOG.md's first version section that
+#   version's, the tagged commit on master, and no release for the tag may
+#   exist yet, draft or published. Then the Windows job alone builds,
+#   unlabelled (the macOS jobs are skipped until a Mac build is
+#   play-tested), and the release job checks again and creates the release
+#   as a draft, titled "Non-Visual Melee <version> beta", not a prerelease,
+#   with the Windows zip and the notes the script writes. A draft is
+#   invisible to players and never "latest": the release skill checks it
+#   and publishes it. A run never replaces a release: a failed draft is
+#   deleted by hand before a re-run.
 # - A dispatch on any branch (`gh workflow run a11y.yml --ref <branch>`)
-#   builds and keeps its zips as run artifacts and leaves ci-latest alone.
+#   builds and keeps its zips as run artifacts and leaves ci-latest and
+#   the releases alone.
 #
-# Each build job keeps its zip as a run artifact; the publish job alone
-# writes the release, and only on a push to dev. Every zip holds
-# readme.html and changelog.html beside the game, made by pandoc from
-# ACCESSIBILITY.md and CHANGELOG.md at the commit built
-# (tools/a11y/make_documents.py).
+# Each build job keeps its zip as a run artifact; the publish job writes
+# ci-latest, only on a push to dev, and the release job a versioned
+# release's draft, only on a tag. Every build job sets the app version
+# (MELEE_VERSION) from the root VERSION file, on every trigger, so a tag
+# build plays online with the base port's release and never takes the tag's
+# name as its version. Every zip holds readme.html and changelog.html beside
+# the game, made by pandoc from ACCESSIBILITY.md and CHANGELOG.md at the
+# commit built (tools/a11y/make_documents.py).
 #
 # The Windows zip is the one that must ship: publish needs the Windows job to
 # pass, and takes whichever macOS zips were built. A failed macOS job leaves
@@ -30,6 +48,7 @@ name: A11y
 on:
   push:
     branches: [dev]
+    tags: ['a11y-v*']
   # Any branch: `gh workflow run a11y.yml --ref <branch>`.
   workflow_dispatch:
 
@@ -37,8 +56,8 @@ permissions:
   contents: read
 
 # The newest push to a branch wins: an older build of the same branch still
-# running is cancelled. Each branch has its own group, so a topic branch's
-# run never cancels dev's, or the other way round.
+# running is cancelled. Each branch and tag has its own group, so a topic
+# branch's run never cancels dev's, or the other way round.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -47,8 +66,35 @@ env:
   ZIP_NAME: NonVisualMelee-Windows-x86_64.zip
 
 jobs:
+  # A tag's checks, before any build (tools/a11y/release_notes.py --help
+  # says each). The full history is fetched so the script can ask whether
+  # the tagged commit is on origin/master. contents: write lets gh see draft
+  # releases, which a token with read access alone is never shown.
+  release-check:
+    name: Check the release
+    if: ${{ github.ref_type == 'tag' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag and write the notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/a11y/release_notes.py "${GITHUB_REF_NAME}" \
+            --commit "${GITHUB_SHA}" --repo "${GITHUB_REPOSITORY}" --notes notes.md
+          cat notes.md
+
   windows:
     name: Windows (x86_64)
+    # After a tag's checks; on any other trigger the check job is skipped
+    # and this one runs at once.
+    needs: [release-check]
+    if: ${{ !cancelled() && (needs.release-check.result == 'success' || needs.release-check.result == 'skipped') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -65,12 +111,20 @@ jobs:
           sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
-      # The fork version's build label, which the configure reads
-      # (src/pc/a11y/a11y.cmake): "dev build" and the commit's short hash.
-      # A release's tag build is to set "none" instead, which leaves it
-      # unlabelled.
-      - name: Label the build
-        run: echo "MELEE_A11Y_BUILD_LABEL=dev build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      # The app version from the root VERSION file, never a tag's name
+      # (the root CMakeLists.txt would take a tag's), and the fork version's
+      # build label, which the configure reads (src/pc/a11y/a11y.cmake):
+      # "none", unlabelled, on a release's tag, otherwise "dev build" and
+      # the commit's short hash.
+      - name: Set the version and the build label
+        run: |
+          echo "MELEE_VERSION=$(head -n 1 VERSION)" >> "$GITHUB_ENV"
+          if [[ "${GITHUB_REF}" == refs/tags/a11y-v* ]]; then
+            label="none"
+          else
+            label="dev build ${GITHUB_SHA::7}"
+          fi
+          echo "MELEE_A11Y_BUILD_LABEL=${label}" >> "$GITHUB_ENV"
 
       - name: Build and package
         env:
@@ -125,6 +179,9 @@ jobs:
 
   macos:
     name: macOS (${{ matrix.arch }})
+    # Not on a release's tag: versioned releases ship the Windows zip alone
+    # until a Mac build is play-tested (ADR-0011).
+    if: ${{ github.ref_type != 'tag' }}
     # The oldest macOS the zip runs on is the highest minimum among melee
     # and the dylibs bundled with it. The base port sets no deployment
     # target, so its build gets the runner's macOS; here melee, SDL and the
@@ -166,9 +223,12 @@ jobs:
       - name: Verify native rollback snapshot restore
         run: python3 tools/test_snapshot_platforms.py SnapshotPlatforms.test_native_mac_restore
 
-      # The same build label as the Windows job's.
-      - name: Label the build
-        run: echo "MELEE_A11Y_BUILD_LABEL=dev build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      # The app version and the build label as in the Windows job; a tag
+      # never reaches this job, so the label is always a dev build's.
+      - name: Set the version and the build label
+        run: |
+          echo "MELEE_VERSION=$(head -n 1 VERSION)" >> "$GITHUB_ENV"
+          echo "MELEE_A11Y_BUILD_LABEL=dev build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       # Makes build/macos/Melee.app, with Prism's dylib bundled from beside
       # melee into Contents/Frameworks, ad-hoc signed and verified
@@ -332,3 +392,46 @@ jobs:
             --title "Latest CI build" \
             --notes-file notes.md \
             dist/NonVisualMelee-*.zip
+
+  # A versioned release, created as a draft for the release skill to check
+  # and publish. The checks run again first, against a release made in the
+  # meantime or by a re-run of this job alone, and write the notes and the
+  # title. --verify-tag refuses a tag GitHub does not hold.
+  release:
+    name: Draft the release
+    needs: [release-check, windows]
+    if: ${{ github.ref_type == 'tag' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: NonVisualMelee-Windows-x86_64
+          path: dist
+
+      - name: Check the tag again and write the notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/a11y/release_notes.py "${GITHUB_REF_NAME}" \
+            --commit "${GITHUB_SHA}" --repo "${GITHUB_REPOSITORY}" \
+            --notes notes.md --outputs "$GITHUB_OUTPUT"
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.notes.outputs.title }}
+        run: |
+          ls -lh dist
+          gh release create "${GITHUB_REF_NAME}" \
+            --draft \
+            --verify-tag \
+            --title "${TITLE}" \
+            --notes-file notes.md \
+            "dist/${ZIP_NAME}"

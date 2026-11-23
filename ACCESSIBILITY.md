@@ -275,6 +275,10 @@ You can play VS. matches online against other Non-Visual Melee players and
 against sighted players using melee-pc, as long as you both have the same
 version and the same disc image. Both are found under VS. Mode, Online.
 
+Each Non-Visual Melee release names the melee-pc version it plays with, at the
+top of its release notes: a melee-pc player needs that version, and another
+Non-Visual Melee player a release that names the same one.
+
 ### How it works
 
 There is no game server. Your computer connects straight to your friend's

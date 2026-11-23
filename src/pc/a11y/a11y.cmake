@@ -700,6 +700,9 @@ if (TARGET unit_tests)
         # The zip documents' pandoc commands and refusals, pandoc faked.
         add_test(NAME make_documents COMMAND ${MELEE_PYTHON} ${PROJECT_SOURCE_DIR}/tools/a11y/test_make_documents.py)
         set_tests_properties(make_documents PROPERTIES LABELS melee)
+        # The tag build's checks and release notes, git and gh faked.
+        add_test(NAME release_notes COMMAND ${MELEE_PYTHON} ${PROJECT_SOURCE_DIR}/tools/a11y/test_release_notes.py)
+        set_tests_properties(release_notes PROPERTIES LABELS melee)
     endif ()
 
     # The accessibility settings: the value model, its file against files in
