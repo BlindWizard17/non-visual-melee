@@ -67,9 +67,17 @@ event pipe, so these steps fail on it.
 
 --launcher starts the game on the launcher instead of the disc: the run's
 settings folder gets a launcher.cfg that names the disc (--disc) and turns
-the update check off, so the launcher opens on Home with the disc
-remembered and says the same whatever the network and the latest release.
+the update check off (--update-list, below, leaves it on), so the launcher
+opens on Home with the disc remembered and says the same whatever the
+network and the latest release.
 Its Play starts the game as a player's would.
+
+--update-list FILE leaves the update check on and has the game read the
+release list from FILE (MELEE_A11Y_UPDATE_LIST, relative to the repo root)
+in place of GitHub's, so a run hears an update, or none, from a canned
+list in tools/a11y/update_lists/ and never asks the network. With
+--launcher the launcher checks at start; the port menu's Check now reads
+the same file.
 
 A key or gamepad step that would press the focused control (Return, Space,
 a, start) is refused while the last focus announcement names a control that
@@ -320,15 +328,16 @@ def put_card_save(user_dir, data):
     return path
 
 
-def write_launcher_cfg(folder, disc):
+def write_launcher_cfg(folder, disc, check_updates=False):
     """A launcher.cfg in the run's settings folder naming the disc, in
     launcher_data.cpp's format (strings as std::quoted writes them), so the
     launcher opens on Home with the disc remembered. check_updates 0 keeps
     the update banner away: with it on, what Home says at start would
-    follow the network and the base port's latest release."""
+    follow the network and the fork's latest release. It is on only for a
+    run with a canned release list (--update-list)."""
     quoted = '"' + disc.replace("\\", "\\\\").replace('"', '\\"') + '"'
     with open(os.path.join(folder, "launcher.cfg"), "w", encoding="utf-8") as f:
-        f.write(f"disc {quoted}\ncheck_updates 0\n")
+        f.write(f"disc {quoted}\ncheck_updates {1 if check_updates else 0}\n")
 
 
 def category_names():
@@ -730,6 +739,9 @@ class Game:
             full_env["SDL_AUDIO_DRIVER"] = "dummy"
         if not args.focus:
             full_env["SDL_WINDOW_ACTIVATE_WHEN_SHOWN"] = "0"
+        update_list = getattr(args, "update_list", None)
+        if update_list:
+            full_env["MELEE_A11Y_UPDATE_LIST"] = os.path.join(REPO, update_list)
         full_env.update(env or {})
         exe = exe or os.path.join(REPO, "build", "melee.exe")
         disc = os.path.join(REPO, args.disc)
@@ -758,7 +770,7 @@ class Game:
         # its working directory.
         self.a11y_ini = os.path.join(REPO, full_env["MELEE_A11Y_SETTINGS"])
         if self.launcher:
-            write_launcher_cfg(self.settings_dir, disc)
+            write_launcher_cfg(self.settings_dir, disc, check_updates=bool(update_list))
         self.pipe = Pipe(pipe_name, "key pipe")
         self.event_pipe = Pipe(event_pipe_name, "event pipe", " (a base port build has none)")
         self.out_file = open(out, "w", encoding="utf-8")
@@ -958,6 +970,9 @@ def main():
     ap.add_argument("--disc", default="melee.iso", help="disc image, relative to the repo root")
     ap.add_argument("--launcher", action="store_true",
                     help="open the launcher, with the disc remembered, instead of starting the disc")
+    ap.add_argument("--update-list", metavar="FILE",
+                    help="the update check on, reading this release list instead of GitHub's "
+                         "(MELEE_A11Y_UPDATE_LIST, below)")
     ap.add_argument("--out", default=os.path.join(REPO, "build", "drive", "last.log"),
                     help="full output transcript (default build/drive/last.log)")
     ap.add_argument("--speech", action="store_true", help="speak through the screen reader (off by default)")

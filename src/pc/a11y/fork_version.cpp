@@ -22,6 +22,14 @@ std::string labelled_fork_version(const BuildVersions& versions) {
     return versions.fork + " (" + versions.label + ")";
 }
 
+std::string shown_version(const BuildVersions& versions) {
+    const std::string base = "Melee-PC " + versions.app;
+    if (versions.label.empty()) {
+        return versions.fork + " (" + base + ")";
+    }
+    return versions.fork + " (" + versions.label + ", " + base + ")";
+}
+
 std::string version_line(const BuildVersions& versions) {
     return "Non-Visual Melee " + labelled_fork_version(versions) + ", Melee-PC " + versions.app;
 }

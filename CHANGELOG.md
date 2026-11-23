@@ -13,7 +13,7 @@ playable by blind players. What it reads and plays:
   computer or online.
 - **The launcher and the port menu**, read aloud, with an Accessibility
   category in both for the switches, volumes, voices and a preview of each
-  sound.
+  sound. The launcher tells you when a newer Non-Visual Melee release is out.
 - **The game's menus:** the main menu and its screens, the rules screens,
   Options, Training's pause menu, the results screen, memory card prompts and
   unlock notices.

@@ -658,13 +658,13 @@ class Launcher final : public Rml::EventListener {
         text("check-updates", prefs.check_updates ? "On" : "Off");
         auto ustate = pc::updater::get_state();
         if (ustate.status == pc::updater::Status::UpdateAvailable) {
-            text("check-status", "Update available: " + ustate.latest_release.tag_name);
+            text("check-status", pc_a11y_update_available(ustate));  // a11y
         } else if (ustate.status == pc::updater::Status::Checking) {
             text("check-status", "Checking for updates...");
         } else if (ustate.status == pc::updater::Status::Failed) {
             text("check-status", ustate.message);
         } else {
-            text("check-status", "Melee-PC is up to date (" + pc::get_app_version() + ").");
+            text("check-status", pc_a11y_update_up_to_date());  // a11y
         }
         notice();
         quiet = false;
@@ -994,8 +994,8 @@ public:
         document->SetClass("android", true);
 #endif
         document->Show();
-        text("app-version", pc::get_app_version());
-        text("check-status", "Current version: " + pc::get_app_version());
+        text("app-version", pc_a11y_shown_version());                      // a11y
+        text("check-status", "Current version: " + pc_a11y_shown_version());  // a11y
         text("disc-note", disc_note);
         if (prefs.check_updates) {
             pc::updater::check_for_updates_async(true);
@@ -1264,12 +1264,11 @@ public:
                         !update_card_dismissed && !settings)
                     {
                         card->SetProperty("display", "block");
-                        text("update-tag", ustate.latest_release.tag_name);
+                        text("update-tag", pc_a11y_update_version(ustate));  // a11y
                         text("update-title", ustate.latest_release.name.empty() ?
                                                  ustate.latest_release.tag_name :
                                                  ustate.latest_release.name);
-                        std::string desc = "A newer version of Melee PC is available (" +
-                                           ustate.latest_release.tag_name + ").";
+                        std::string desc = pc_a11y_update_description(ustate);  // a11y
 #if defined(_WIN32)
                         desc += " Download and extract the Windows ZIP from the release page.";
                         text("update-action", "Open release page");
@@ -1829,16 +1828,16 @@ public:
         label("fps", prefs.fps ? "On" : "Off");
         slider("scale", prefs.scale * 100.0f);
         label("scale-val", std::to_string(int(prefs.scale * 100 + 0.5f)) + "%");
-        label("menu-version", pc::get_app_version());
+        label("menu-version", pc_a11y_shown_version());  // a11y
         auto ustate = pc::updater::get_state();
         if (ustate.status == pc::updater::Status::UpdateAvailable) {
-            label("port-update-status", "Update available: " + ustate.latest_release.tag_name);
+            label("port-update-status", pc_a11y_update_available(ustate));  // a11y
         } else if (ustate.status == pc::updater::Status::Checking) {
             label("port-update-status", "Checking for updates...");
         } else if (ustate.status == pc::updater::Status::Failed) {
             label("port-update-status", "Check failed");
         } else {
-            label("port-update-status", "Up to date (" + pc::get_app_version() + ")");
+            label("port-update-status", pc_a11y_update_up_to_date());  // a11y
         }
         refresh_bindings();
         quiet = false;

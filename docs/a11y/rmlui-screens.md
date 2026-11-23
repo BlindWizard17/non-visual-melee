@@ -142,6 +142,21 @@ The category's top level holds the master switches, each followed by the row tha
 
 A choice (`cues.md`, "Choices") uses the markup of the base port's own choice rows, such as Aspect ratio, Post-processing and Input delay: a `button.value` in a row, its label the option in use, which the launcher's `cycle` and the port menu's `apply` step with Left and Right, round from either end. A slider was the other candidate, but a slider's value is a number with its shown text in a span of its own, while a choice's value is its text, and the fork's sliders hold still at their ends rather than wrap. So the readers needed nothing new: the shared reader takes a `button.value` in a named row as a setting and reads a choice as it reads Aspect ratio, "Your voice, Microsoft Mark, Left and right to change." and the help, then the option alone after each step. A row shows an option by its label when it has one ("Microsoft Mark, English (United States)") and saves its text.
 
+## The update check
+
+A fork build's launcher offers Non-Visual Melee's releases, never the base port's ([ADR-0011](../adr/0011-fork-releases-are-versioned-apart-from-the-base-port.md)). The base port's `updater.cpp` fetches the release list on a worker thread and `launcher.cpp` shows its result; fork code (`update_check.cpp` for the choice and the words, `update_hooks.cpp` for the hand-offs) decides the repository, the release, the zip and the words, and the readers say the new text with no change of their own.
+
+### The wiring in the base port's files
+
+Each line is one call, declared at the end of `a11y_hooks.h` with the C++ hand-offs and marked with an `a11y` comment:
+
+- **The fetch.** The release list's path (`pc_a11y_update_api_path`, WinHTTP) and URL (`pc_a11y_update_api_url`, curl) name the fork's repository. `pc_a11y_update_list_file` reads a canned list first when the developer switch `MELEE_A11Y_UPDATE_LIST` names one, and the network is then never asked.
+- **The choice.** One `return pc_a11y_update_result(...)` before the base port's choice sets the state's status, message, release and zip, so the base port's choice below it, its `SemVer` comparison and its asset names go unused but stay as written, which keeps a base merge's conflicts to the lines above. The fork compares versions itself: `SemVer::parse` would take `0.1.0` once the tag's `a11y-v` is stripped, but it also takes `1`, `0.1.0-rc1` and trailing text, where a fork tag must be a whole `MAJOR.MINOR.PATCH`, as `FORK_VERSION` is. It reads the list's JSON itself too, since the base port's parser skips the drafts' flag.
+- **The browser.** `open_release_in_browser` falls back to the fork's latest release page (`pc_a11y_update_releases_page`) when no release is on offer.
+- **The words.** In `launcher.cpp`, the update banner's tag and description, both status lines' "Update available" and "up to date" (`check-status` in Settings, `port-update-status` in the port menu), and the version shown in both title bars (`app-version`, `menu-version`, and `check-status`'s first "Current version: ") call `pc_a11y_update_version`, `pc_a11y_update_description`, `pc_a11y_update_available`, `pc_a11y_update_up_to_date` and `pc_a11y_shown_version`. The base port's own words around them (the banner's Windows instructions, "Checking for updates...", a failure's message) stay.
+
+The shown version is the fork version with the label and the base port's version in its brackets, "0.1.0 (dev build 1a2b3c4, Melee-PC v0.4.2)"; it fits both title bars at the launcher's window size with the longest label. No reader says the title bars, so a player hears the fork version from the status lines alone.
+
 ## RmlUi event facts worth knowing
 
 - `focus` and `blur` do not bubble, but a listener added in the capture phase still receives them, on every ancestor down to the element.
@@ -172,7 +187,7 @@ So the fork has its own pipe, the event pipe (`event_pipe.cpp`), started as acce
 `drive.py --launcher` starts the game with no disc argument, which opens the launcher (`src/pc/main.c`). Before the game starts, it writes a `launcher.cfg` into the run's own settings folder (`MELEE_USER_DIR`), in `launcher_data.cpp`'s format:
 
 - **`disc` names the disc**, quoted as `std::quoted` writes it, so the launcher opens on Home with the disc remembered. At start-up the launcher checks that disc with every button but Quit disabled, and moves focus to Play once the check passes; the opening waits for both, so a script's first wait on the opening outlasts the check by itself.
-- **`check_updates 0` turns the update check off.** With it on, the launcher asks GitHub for the latest release at start, and on a build older than that release Home shows the update banner, which the reader announces ("Update available: ..."). What a run says would then follow the network and whatever the base port last released.
+- **`check_updates 0` turns the update check off.** With it on, the launcher asks GitHub for the latest release at start, and on a build older than that release Home shows the update banner, which the reader announces ("Update available: ..."). What a run says would then follow the network and whatever the fork last released. `--update-list` leaves it on with a canned release list read in its place ("The update check" above).
 
 The game rewrites the file at every start with all its settings, so a run's folder ends with a full one. Three more things shape a launcher run:
 

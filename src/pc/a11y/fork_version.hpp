@@ -27,6 +27,12 @@ const BuildVersions& build_versions();
  * label: "0.1.0 (local build)". */
 std::string labelled_fork_version(const BuildVersions& versions);
 
+/* The version the launcher's title bar and the port menu's show where the
+ * base port shows its app version: the fork version with the base port's
+ * beside it, and the label, when there is one, first in the brackets:
+ * "0.1.0 (Melee-PC v0.4.2)", "0.1.0 (local build, Melee-PC v0.4.2)". */
+std::string shown_version(const BuildVersions& versions);
+
 /* The startup log line: "Non-Visual Melee 0.1.0 (local build), Melee-PC
  * v0.4.2". */
 std::string version_line(const BuildVersions& versions);

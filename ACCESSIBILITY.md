@@ -32,6 +32,11 @@ included.
   opened in game with F1 or Back on a controller, are read aloud. They hold
   melee-pc's own settings, such as the master, music and sound effect volumes
   and controller remapping.
+- **Update check.** As it opens, the launcher looks for a newer release of
+  Non-Visual Melee and, when there is one, says "Update available" with its
+  version; Open release page takes you to it in your browser. Check for
+  updates, in the Launcher category of its Settings, turns this off, and the
+  Updates row there checks at once and says whether you are up to date.
 - **Accessibility settings.** An Accessibility category in both menus holds
   Non-Visual Melee's own settings: switches for speech and the audio cues, each
   cue's volume, and the voices of the match announcements with their rate and

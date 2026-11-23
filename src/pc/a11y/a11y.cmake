@@ -95,6 +95,8 @@ endif ()
 target_sources(melee PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/hooks.cpp
         ${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/update_check.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/update_hooks.cpp
         ${CMAKE_CURRENT_LIST_DIR}/speech.cpp
         ${CMAKE_CURRENT_LIST_DIR}/voices.cpp
         ${CMAKE_CURRENT_LIST_DIR}/voice_settings.cpp
@@ -337,6 +339,32 @@ if (TARGET unit_tests)
     add_test(NAME fork_version COMMAND fork_version_test ${CMAKE_CURRENT_LIST_DIR}/FORK_VERSION)
     set_tests_properties(fork_version PROPERTIES LABELS melee)
     add_dependencies(unit_tests fork_version_test)
+
+    # The update check's choice of release on canned release lists, its
+    # words, and the hand-offs filling the updater's state; its own
+    # pc_log_line.
+    add_executable(update_check_test EXCLUDE_FROM_ALL
+            ${CMAKE_CURRENT_LIST_DIR}/test_update_check.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/update_check.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/update_hooks.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp
+            ${PROJECT_SOURCE_DIR}/src/pc/version.cpp)
+    target_include_directories(update_check_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
+    target_compile_options(update_check_test PRIVATE -UNDEBUG)
+    add_test(NAME update_check COMMAND update_check_test ${CMAKE_BINARY_DIR}/update_check_files)
+    set_tests_properties(update_check PROPERTIES LABELS melee)
+    add_dependencies(unit_tests update_check_test)
+
+    # The base port's updater test compiles updater.cpp, which hands the
+    # update check to the fork (update_hooks.cpp); it gets the fork's side
+    # and a silent pc_log_line.
+    if (TARGET updater_test)
+        target_sources(updater_test PRIVATE
+                ${CMAKE_CURRENT_LIST_DIR}/update_check.cpp
+                ${CMAKE_CURRENT_LIST_DIR}/update_hooks.cpp
+                ${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp
+                ${CMAKE_CURRENT_LIST_DIR}/test_updater_log.cpp)
+    endif ()
 
     # Speech against a fake bridge; the test defines its own pc_log_line.
     add_executable(speech_test EXCLUDE_FROM_ALL

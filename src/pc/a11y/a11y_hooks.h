@@ -254,4 +254,41 @@ bool pc_a11y_settings_change(Rml::Event& event);
  * (docs/adr/0009-the-accessibility-settings-split-into-submenus-inside-the-one-category.md).
  * False on the top level and outside the fork's rows. */
 bool pc_a11y_settings_back(Rml::ElementDocument* document);
+
+/* The update check follows the fork's releases, not the base port's
+ * (docs/adr/0011-fork-releases-are-versioned-apart-from-the-base-port.md):
+ * src/pc/updater.cpp asks the fork's repository and lets fork code pick the
+ * release, and src/pc/launcher.cpp shows the fork's version and words where
+ * it showed the base port's. Defined in update_hooks.cpp, on the logic in
+ * update_check.cpp. */
+namespace pc::updater {
+struct UpdateState;
+}  // namespace pc::updater
+
+/* The release list's path on api.github.com (WinHTTP) and its whole URL
+ * (curl). */
+const wchar_t* pc_a11y_update_api_path();
+const char* pc_a11y_update_api_url();
+/* Before the list is fetched: with the developer switch
+ * MELEE_A11Y_UPDATE_LIST naming a file, reads the list from it into body
+ * and returns true, so the network is never asked. */
+bool pc_a11y_update_list_file(std::string& body);
+/* The list fetched, under the updater's lock: picks the release to offer and
+ * sets the state's status, message, release and zip, in place of the base
+ * port's choice. */
+void pc_a11y_update_result(const std::string& body, pc::updater::UpdateState& state);
+/* The fork's releases page, for the browser when no release is on offer. */
+const char* pc_a11y_update_releases_page();
+/* Where the launcher's title bar and the port menu's show the app version:
+ * "0.1.0 (local build, Melee-PC v0.4.2)" (a11y::shown_version). */
+std::string pc_a11y_shown_version();
+/* The offered release's version, "0.1.1", for the update banner's tag. */
+std::string pc_a11y_update_version(const pc::updater::UpdateState& state);
+/* "Update available: Non-Visual Melee 0.1.1", for the status lines. */
+std::string pc_a11y_update_available(const pc::updater::UpdateState& state);
+/* "A newer version of Non-Visual Melee is available (0.1.1).", the banner's
+ * description before the base port's instructions. */
+std::string pc_a11y_update_description(const pc::updater::UpdateState& state);
+/* "Non-Visual Melee is up to date (0.1.0).", for the status lines. */
+std::string pc_a11y_update_up_to_date();
 #endif

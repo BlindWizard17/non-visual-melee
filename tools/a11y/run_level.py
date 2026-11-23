@@ -15,9 +15,9 @@ Arguments are groups or script names, run in that order, a group's runs
 side by side, the longest first by their last passing times, kept in
 times.json beside the transcripts:
 
-  menus   the menu drive scripts (MENUS), the launcher's four and the
-          port menu's three among them; the match announcements' scripts
-          run by name. memcard_corrupted runs memcard_create.drive first
+  menus   the menu drive scripts (MENUS), the launcher's six (two on
+          canned release lists) and the port menu's three among them; the
+          match announcements' scripts run by name. memcard_corrupted runs memcard_create.drive first
           and takes the save it makes, corrupted; challenger runs
           make_save.py first for a save that brings Jigglypuff, and
           rumble_names for a save with ten names
@@ -62,7 +62,8 @@ MENUS = ["rules_switches", "tree_walk", "css_rules", "css_setup", "rules_screens
          "sss_skipped", "sss_glide_pick", "leaf_screens", "sss_hover", "css_classic", "css_training",
          "css_coins", "css_slots", "css_portraits", "css_steps", "results", "results_no_contest", "results_cpu4",
          "results_teams", "training_menu", "launcher_home",
-         "launcher_settings", "launcher_a11y", "launcher_voices", "port_menu", "port_menu_a11y",
+         "launcher_settings", "launcher_a11y", "launcher_voices", "launcher_update",
+         "launcher_up_to_date", "port_menu", "port_menu_a11y",
          "port_menu_voices", "direct_hub", "memcard_no", "memcard_no_card", "memcard_corrupted",
          "unlock_notices", "challenger", "language", "erase_data", "rumble",
          "rumble_names"]
@@ -71,6 +72,10 @@ MENUS = ["rules_switches", "tree_walk", "css_rules", "css_setup", "rules_screens
 # as the port menu's does.
 ARGS = {"launcher_home": ["--launcher", "--muted"], "launcher_settings": ["--launcher", "--muted"],
         "launcher_a11y": ["--launcher", "--muted"], "launcher_voices": ["--launcher", "--muted"],
+        # The update check reads a canned release list, never GitHub's.
+        "launcher_update": ["--launcher", "--muted", "--update-list", "tools/a11y/update_lists/newer.json"],
+        "launcher_up_to_date": ["--launcher", "--muted", "--update-list",
+                                "tools/a11y/update_lists/base_only.json"],
         "port_menu": ["--muted"], "port_menu_a11y": ["--muted"],
         "port_menu_voices": ["--muted"], "match_port_menu": ["--muted"], "direct_call": ["--muted"],
         "match_damage": ["--muted"], "match_thresholds": ["--muted"], "match_stocks": ["--muted"],
@@ -127,6 +132,9 @@ ABSENT = {"sss_skipped": re.compile(r'"Stage select\.'),
           "training_menu": re.compile(r"\[a11y\] training menu row "),
           "port_menu": PORT_MENU_STATUS, "port_menu_a11y": PORT_MENU_STATUS,
           "port_menu_voices": PORT_MENU_STATUS,
+          # No fork release is newer, so no banner, status line or row
+          # offers one; the port menu's status line as above.
+          "launcher_up_to_date": re.compile(r'"Update available|' + PORT_MENU_STATUS.pattern),
           # The scene's placeholder, which DIRECT CONNECT's own opening replaces.
           "direct_hub": NO_LOBBY_SPEECH, "direct_call": NO_LOBBY_SPEECH,
           "results": re.compile(READY), "results_teams": re.compile(READY),
@@ -197,6 +205,9 @@ COUNT = {"match_gap": GAP_ONCE, "match_gap_battlefield": GAP_ONCE, "match_ledge"
          # language in use reloads nothing, and each reload says the change
          # first.
          "language": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "Options\. Language\. '), 1)],
+         # The banner said once, as the launcher opens; Check now in
+         # Settings brings it no second time.
+         "launcher_update": [(re.compile(r'\[a11y\] speak \w+ \(muted\): "Update available: 99\.0\.0"$'), 1)],
          # Five prompt openings; A on the erased row opens none.
          "erase_data": [(re.compile(r'\[a11y\] speak \w+( \(off\))?: "Erase\? No'), 5)],
          # P1 switched four times; Right with no names leaves P1 on its panel

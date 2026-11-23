@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* The fork's versions and build label: the shown forms, with and without a
- * label, and this build's values against src/pc/a11y/FORK_VERSION, whose path is
+/* The fork's versions and build label: the logged and shown forms, with and
+ * without a label, and this build's values against src/pc/a11y/FORK_VERSION, whose path is
  * the test's argument. */
 #include "fork_version.hpp"
 #include "pc/version.hpp"
@@ -32,6 +32,14 @@ void version_line_names_both_versions() {
            "Non-Visual Melee 0.1.0 (local build), Melee-PC v0.4.2");
     assert(a11y::version_line(BuildVersions{"0.2.3", "dev build 1a2b3c4", "v0.5.0"}) ==
            "Non-Visual Melee 0.2.3 (dev build 1a2b3c4), Melee-PC v0.5.0");
+}
+
+void shown_version_names_the_base_port_release() {
+    assert(a11y::shown_version(BuildVersions{"0.1.0", "", "v0.4.2"}) == "0.1.0 (Melee-PC v0.4.2)");
+    assert(a11y::shown_version(BuildVersions{"0.1.0", "local build", "v0.4.2"}) ==
+           "0.1.0 (local build, Melee-PC v0.4.2)");
+    assert(a11y::shown_version(BuildVersions{"0.2.3", "dev build 1a2b3c4", "v0.5.0"}) ==
+           "0.2.3 (dev build 1a2b3c4, Melee-PC v0.5.0)");
 }
 
 bool is_version(const std::string& s) {
@@ -84,6 +92,7 @@ int main(int argc, char** argv) {
     labelled_version_names_the_label();
     a_release_build_has_no_label();
     version_line_names_both_versions();
+    shown_version_names_the_base_port_release();
     this_build_carries_the_version_file(argv[1]);
     std::cout << "fork_version: all tests passed\n";
     return 0;
