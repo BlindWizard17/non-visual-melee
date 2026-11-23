@@ -160,7 +160,9 @@ These parts of the game are not accessible yet:
 
 1. Download the latest release from the
    [releases page](https://github.com/ohylli/non-visual-melee/releases/latest).
-2. Extract the downloaded zip file into a folder of your choice.
+2. Extract the downloaded zip file into a folder of your choice. Beside
+   `melee.exe` the folder holds `readme.html`, this guide, and
+   `changelog.html`, what changed in each release.
 3. Run `melee.exe` from that folder. It opens the launcher, and on the first
    start it asks you to choose your disc image with Choose Disc.
 4. If you are unsure you have the right disc image, press Verify Disc to check

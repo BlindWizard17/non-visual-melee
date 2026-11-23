@@ -667,6 +667,9 @@ if (TARGET unit_tests)
         # The save tool's card cipher and edits, on a hand-made save file.
         add_test(NAME make_save COMMAND ${MELEE_PYTHON} ${PROJECT_SOURCE_DIR}/tools/a11y/test_make_save.py)
         set_tests_properties(make_save PROPERTIES LABELS melee)
+        # The zip documents' pandoc commands and refusals, pandoc faked.
+        add_test(NAME make_documents COMMAND ${MELEE_PYTHON} ${PROJECT_SOURCE_DIR}/tools/a11y/test_make_documents.py)
+        set_tests_properties(make_documents PROPERTIES LABELS melee)
     endif ()
 
     # The accessibility settings: the value model, its file against files in
