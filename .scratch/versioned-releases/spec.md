@@ -77,6 +77,7 @@ From reading the files on 2026-11-23.
 
 - **The fork version** is `MAJOR.MINOR.PATCH`, `0.x` while in beta.
   - It lives in `src/pc/a11y/VERSION`, which holds the version of the latest release. It holds `0.0.0` until the first release.
+  - Renamed `src/pc/a11y/FORK_VERSION` on 2026-11-23 (issue 02's comments): a file named `VERSION` in an include directory broke the Mac builds, whose case-insensitive disk let libc++'s `#include <version>` open it. The rest of this spec keeps the old name.
   - `a11y.cmake` reads it into a define for fork code, as the root `CMakeLists.txt` does for the app version.
   - A minor bump is for new features and a patch bump for fixes alone. The release skill asks the maintainer which.
 - **The build label** tells builds of the same version apart.

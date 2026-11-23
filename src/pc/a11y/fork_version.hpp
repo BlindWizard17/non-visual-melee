@@ -8,7 +8,7 @@ namespace a11y {
  * one version apart (docs/adr/0011-fork-releases-are-versioned-apart-from-
  * the-base-port.md). */
 struct BuildVersions {
-    /* The fork's own version, src/pc/a11y/VERSION as written: "0.1.0", the
+    /* The fork's own version, src/pc/a11y/FORK_VERSION as written: "0.1.0", the
      * latest release's. Players, the changelog and the update check go by
      * it; the one version compared with a release's. */
     std::string fork;

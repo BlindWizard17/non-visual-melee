@@ -5,7 +5,7 @@
 /* Set for this file alone by a11y.cmake, so a new version or label rebuilds
  * nothing else. */
 #if !defined(A11Y_FORK_VERSION) || !defined(A11Y_BUILD_LABEL)
-#error "Build with CMake so A11Y_FORK_VERSION matches src/pc/a11y/VERSION"
+#error "Build with CMake so A11Y_FORK_VERSION matches src/pc/a11y/FORK_VERSION"
 #endif
 
 namespace a11y {

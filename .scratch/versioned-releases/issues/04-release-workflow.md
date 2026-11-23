@@ -11,7 +11,7 @@ Spec: `.scratch/versioned-releases/spec.md`, "The workflow". ADR-0011.
 - **Trigger**: pushed tags matching `a11y-v*`.
 - **`MELEE_VERSION`** is set from the root `VERSION` file in every build job, for every trigger, so a tag build's app version is the base port's and never the tag's name.
 - **The checks**, before any build. On any failure the run stops and says which check failed:
-  - The tag is `a11y-v` plus `src/pc/a11y/VERSION`.
+  - The tag is `a11y-v` plus `src/pc/a11y/FORK_VERSION`.
   - The first version section of `CHANGELOG.md` is that version.
   - The tagged commit is on `origin/master`.
 - **The builds**: the Windows job alone, unlabelled (issue 02's build label). The Mac jobs are skipped on tags.

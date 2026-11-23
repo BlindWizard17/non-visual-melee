@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* The fork's versions and build label: the shown forms, with and without a
- * label, and this build's values against src/pc/a11y/VERSION, whose path is
+ * label, and this build's values against src/pc/a11y/FORK_VERSION, whose path is
  * the test's argument. */
 #include "fork_version.hpp"
 #include "pc/version.hpp"
@@ -78,7 +78,7 @@ void this_build_carries_the_version_file(const char* version_file) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "usage: fork_version_test <path of src/pc/a11y/VERSION>\n";
+        std::cerr << "usage: fork_version_test <path of src/pc/a11y/FORK_VERSION>\n";
         return 2;
     }
     labelled_version_names_the_label();

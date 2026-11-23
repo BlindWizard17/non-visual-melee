@@ -13,7 +13,7 @@ Spec: `.scratch/versioned-releases/spec.md`, "The release skill" and "Branches".
 - **A release**:
   1. Check that `dev` is clean and pushed, and that `CHANGELOG.md`'s Unreleased section has entries.
   2. Ask the maintainer for a minor or a patch bump, and show the version that gives.
-  3. Rename Unreleased to `<version> (<date>)`, add the "Plays online with Melee-PC <base version>." line from `VERSION`, and bump `src/pc/a11y/VERSION`. Commit on `dev`.
+  3. Rename Unreleased to `<version> (<date>)`, add the "Plays online with Melee-PC <base version>." line from `VERSION`, and bump `src/pc/a11y/FORK_VERSION`. Commit on `dev`.
   4. Fast-forward `master` to `dev` (`--ff-only`), tag `a11y-v<version>`, and push `dev`, `master` and the tag. Invoking the skill is the maintainer's leave to push these three; nothing else is pushed.
   5. Watch the tag's run (`gh run watch --exit-status`).
   6. Check the draft: its title, its notes as `gh release view` prints them, one Windows zip, and the zip's listing with `readme.html` and `changelog.html` (downloaded to the scratchpad, never run). Show the notes to the maintainer.

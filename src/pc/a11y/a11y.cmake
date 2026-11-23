@@ -7,17 +7,19 @@
 # here, so base merges never touch it.
 
 # The fork's own version and the build label (fork_version.cpp, ADR-0011).
-# The version is src/pc/a11y/VERSION, the latest release's, which the release
-# skill bumps; a change to it re-configures, as the root VERSION does. The
-# root VERSION stays the base port's app version, which online pairing needs.
+# The version is src/pc/a11y/FORK_VERSION, the latest release's, which the
+# release skill bumps; a change to it re-configures, as the root VERSION does.
+# The root VERSION stays the base port's app version, which online pairing
+# needs. Not named VERSION: this folder is an include directory, and on a
+# Mac's case-insensitive disk libc++'s #include <version> would open it.
 # The label comes from MELEE_A11Y_BUILD_LABEL, which CI sets
 # (.github/workflows/a11y.yml): unset or empty, a local build, labelled
 # "local build"; "none", a release's tag build, unlabelled; anything else is
 # the label as written, "dev build 1a2b3c4" on other CI builds.
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/VERSION")
-file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/VERSION" A11Y_FORK_VERSION LIMIT_COUNT 1)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/FORK_VERSION")
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/FORK_VERSION" A11Y_FORK_VERSION LIMIT_COUNT 1)
 if (NOT A11Y_FORK_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
-    message(FATAL_ERROR "a11y: src/pc/a11y/VERSION holds \"${A11Y_FORK_VERSION}\", "
+    message(FATAL_ERROR "a11y: src/pc/a11y/FORK_VERSION holds \"${A11Y_FORK_VERSION}\", "
             "not a fork version MAJOR.MINOR.PATCH such as 0.1.0 (no v, no suffix).")
 endif ()
 if ("$ENV{MELEE_A11Y_BUILD_LABEL}" STREQUAL "")
@@ -332,7 +334,7 @@ if (TARGET unit_tests)
             ${PROJECT_SOURCE_DIR}/src/pc/version.cpp)
     target_include_directories(fork_version_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
     target_compile_options(fork_version_test PRIVATE -UNDEBUG)
-    add_test(NAME fork_version COMMAND fork_version_test ${CMAKE_CURRENT_LIST_DIR}/VERSION)
+    add_test(NAME fork_version COMMAND fork_version_test ${CMAKE_CURRENT_LIST_DIR}/FORK_VERSION)
     set_tests_properties(fork_version PROPERTIES LABELS melee)
     add_dependencies(unit_tests fork_version_test)
 
