@@ -39,6 +39,7 @@ Base merges conflict wherever the fork edits a base port file, so the fork's foo
 Fork builds are meant to play online against fork builds and base port builds of the same release; the `verify` skill's online level checks both over loopback (primer `docs/a11y/netplay.md`).
 
 - Two copies pair when their protocol version, app version string and disc image id match. The fork keeps the base port's version string (`MELEE_APP_VERSION`, which CMake sets from the root `VERSION` file for `src/pc/version.cpp`), including in fork releases.
+- The fork version is the fork's own, beside that unchanged app version (ADR-0011): `src/pc/a11y/VERSION`, the latest release's, read by `a11y.cmake` and given to fork code with the build label by `fork_version.hpp`. Players, the changelog and the update check go by it; online pairing never does.
 - Rollback (online netcode that re-runs recent frames when a late input arrives) needs both machines to simulate identical frames, so fork code reads game state and leaves the simulation untouched.
 - The one place the fork writes is the pad hook, `pc_a11y_pad` in `publish_locked` (`src/pc/keyboard.c`): steering adds its stick to port 1's virtual pad there, before the game and the netplay code sample it, so the peer receives it as a player's input (ADR-0004). Nothing else the fork does may change game state or input.
 - Floor tests call the game's own raycast, `mpCheckFloor`, from the tick hook only: it sets temporary marks on the stage's collision data and clears them before returning, so between ticks it leaves nothing changed (ADR-0006).
@@ -84,7 +85,7 @@ Fork code follows `CODING_STYLE.md` at the repo root. Before committing, run `py
 
 ## Docs
 
-`ACCESSIBILITY.md` at the repo root is the fork's user-facing documentation, for blind players: what is and is not accessible, requirements, getting started, controls and how the harder screens are laid out. `README.md` stays the base port's own, with a short note at its top pointing to it. Keep `ACCESSIBILITY.md` in step when a feature a player meets lands or changes.
+`ACCESSIBILITY.md` at the repo root is the fork's user-facing documentation, for blind players: what is and is not accessible, requirements, getting started, controls and how the harder screens are laid out. `README.md` stays the base port's own, with a short note at its top pointing to it. Keep `ACCESSIBILITY.md` in step when a feature a player meets lands or changes, and add the change's line under Unreleased in `CHANGELOG.md`, the players' history of each release, in the same change: a line or two in plain words under `### New`, `### Changed` or `### Fixed`, each heading there only once it has a line. Internal changes add nothing there. `ACCESSIBILITY.md` and `CHANGELOG.md` link only by full URL, since their HTML copies are read from an unzipped folder.
 
 The code is the source of truth for what the fork does. A doc records what stays true as features land and what the code does not reveal without real digging: invariants, reasons, constraints from outside systems (Prism, rollback, the decomp), gotchas.
 

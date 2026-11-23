@@ -57,6 +57,8 @@ And a bounded `vs` run on the pre-merge build, rebuilt first with `cmake --build
 
 On `dev`, `git merge --no-commit --no-ff upstream/master`, so the digest can go into the merge message; without `--no-ff`, a fork with no commits since the last merge fast-forwards and there is no merge commit to hold it. Conflicts follow the `resolving-merge-conflicts` skill with one fork-specific rule from the isolation rule: in a base port file the fork owns nothing but one-line hooks, so keep theirs and re-place the hook at the semantic transition it marked. Where the base port has superseded a fork fix (as with the DLL staging in the first merge), drop the fork's version and say so in the digest. If the maintainer reported that bug to the base port, look up the issue's state with `gh issue view` and put it in the merge notes; commenting on or closing it is the maintainer's call.
 
+The merge adds its lines under Unreleased in `CHANGELOG.md`, in the merge commit, written as `CLAUDE.md`'s "Docs" says. A merge that moves the root `VERSION` always adds one under `### Changed`, such as "Now built on Melee-PC v0.4.3, so it plays online with Melee-PC v0.4.3 instead of v0.4.2." A base port change a player would notice (a new setting, a fixed crash, a changed screen) adds its own line, in a player's words; a change only the code sees adds nothing.
+
 ## 3. Verify
 
 Done means all of these hold:

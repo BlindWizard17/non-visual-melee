@@ -5,6 +5,7 @@
 #include "cue_system.hpp"
 #include "direct_speech.hpp"
 #include "event_pipe.hpp"
+#include "fork_version.hpp"
 #include "game_access.h"
 #include "game_text.hpp"
 #include "item_appearance.hpp"
@@ -272,6 +273,9 @@ extern "C" void pc_a11y_init(void) {
     if (s_speech != nullptr) {
         return;
     }
+    /* Whatever the switches say, the speech log's among them: a log a player
+     * sends back then names the build. */
+    pc_log_line("[a11y] %s", a11y::version_line(a11y::build_versions()).c_str());
     a11y::Config config = a11y::config_from_environment();
     /* Silent until the switches are read from the accessibility settings:
      * a player who saved Accessibility off hears nothing, and the screen

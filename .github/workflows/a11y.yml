@@ -61,6 +61,13 @@ jobs:
           sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
+      # The fork version's build label, which the configure reads
+      # (src/pc/a11y/a11y.cmake): "dev build" and the commit's short hash.
+      # A release's tag build is to set "none" instead, which leaves it
+      # unlabelled.
+      - name: Label the build
+        run: echo "MELEE_A11Y_BUILD_LABEL=dev build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
       - name: Build and package
         env:
           TARGET_ARCH: x86_64
@@ -143,6 +150,10 @@ jobs:
 
       - name: Verify native rollback snapshot restore
         run: python3 tools/test_snapshot_platforms.py SnapshotPlatforms.test_native_mac_restore
+
+      # The same build label as the Windows job's.
+      - name: Label the build
+        run: echo "MELEE_A11Y_BUILD_LABEL=dev build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       # Makes build/macos/Melee.app, with Prism's dylib bundled from beside
       # melee into Contents/Frameworks, ad-hoc signed and verified

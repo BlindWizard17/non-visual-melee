@@ -6,6 +6,37 @@
 # and the unit_tests target exist. Everything the fork adds to the build lives
 # here, so base merges never touch it.
 
+# The fork's own version and the build label (fork_version.cpp, ADR-0011).
+# The version is src/pc/a11y/VERSION, the latest release's, which the release
+# skill bumps; a change to it re-configures, as the root VERSION does. The
+# root VERSION stays the base port's app version, which online pairing needs.
+# The label comes from MELEE_A11Y_BUILD_LABEL, which CI sets
+# (.github/workflows/a11y.yml): unset or empty, a local build, labelled
+# "local build"; "none", a release's tag build, unlabelled; anything else is
+# the label as written, "dev build 1a2b3c4" on other CI builds.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/VERSION")
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/VERSION" A11Y_FORK_VERSION LIMIT_COUNT 1)
+if (NOT A11Y_FORK_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR "a11y: src/pc/a11y/VERSION holds \"${A11Y_FORK_VERSION}\", "
+            "not a fork version MAJOR.MINOR.PATCH such as 0.1.0 (no v, no suffix).")
+endif ()
+if ("$ENV{MELEE_A11Y_BUILD_LABEL}" STREQUAL "")
+    set(A11Y_BUILD_LABEL "local build")
+elseif ("$ENV{MELEE_A11Y_BUILD_LABEL}" STREQUAL "none")
+    set(A11Y_BUILD_LABEL "")
+else ()
+    set(A11Y_BUILD_LABEL "$ENV{MELEE_A11Y_BUILD_LABEL}")
+endif ()
+# Letters, digits, spaces and . _ - alone, so the label needs no escaping
+# on its way into a C string.
+if (NOT A11Y_BUILD_LABEL MATCHES "^[A-Za-z0-9 ._-]*$")
+    message(FATAL_ERROR "a11y: MELEE_A11Y_BUILD_LABEL \"${A11Y_BUILD_LABEL}\" may hold only "
+            "letters, digits, spaces and . _ -")
+endif ()
+message(STATUS "a11y: Non-Visual Melee ${A11Y_FORK_VERSION}, build label \"${A11Y_BUILD_LABEL}\"")
+set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp PROPERTIES
+        COMPILE_DEFINITIONS "A11Y_FORK_VERSION=\"${A11Y_FORK_VERSION}\";A11Y_BUILD_LABEL=\"${A11Y_BUILD_LABEL}\"")
+
 # The one place to bump Prism: release tag and the sha256 of each platform's
 # zip for it, as the platform branches below name them.
 set(A11Y_PRISM_VERSION v0.18.2)
@@ -61,6 +92,7 @@ endif ()
 
 target_sources(melee PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/hooks.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp
         ${CMAKE_CURRENT_LIST_DIR}/speech.cpp
         ${CMAKE_CURRENT_LIST_DIR}/voices.cpp
         ${CMAKE_CURRENT_LIST_DIR}/voice_settings.cpp
@@ -292,6 +324,17 @@ if (TARGET unit_tests)
     add_test(NAME netcheck COMMAND netcheck_test)
     set_tests_properties(netcheck PROPERTIES LABELS melee)
     add_dependencies(unit_tests netcheck_test)
+
+    # The versions' shown forms, and this build's against the version file.
+    add_executable(fork_version_test EXCLUDE_FROM_ALL
+            ${CMAKE_CURRENT_LIST_DIR}/test_fork_version.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/fork_version.cpp
+            ${PROJECT_SOURCE_DIR}/src/pc/version.cpp)
+    target_include_directories(fork_version_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${CMAKE_CURRENT_LIST_DIR})
+    target_compile_options(fork_version_test PRIVATE -UNDEBUG)
+    add_test(NAME fork_version COMMAND fork_version_test ${CMAKE_CURRENT_LIST_DIR}/VERSION)
+    set_tests_properties(fork_version PROPERTIES LABELS melee)
+    add_dependencies(unit_tests fork_version_test)
 
     # Speech against a fake bridge; the test defines its own pc_log_line.
     add_executable(speech_test EXCLUDE_FROM_ALL
