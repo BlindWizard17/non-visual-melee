@@ -11,8 +11,10 @@ namespace a11y::updates {
 namespace {
 
 /* A JSON value, enough of it for a release list. The base port's parser in
- * updater.cpp skips the drafts' flag and \u escapes, and lives where fork
- * code cannot reach it, so the fork reads the list itself. */
+ * updater.cpp takes an object for a one-release list, so a refusal such as
+ * GitHub's rate limit ({"message": ...}) would end in "up to date"; it also
+ * skips the drafts' flag and \u escapes, and lives where fork code cannot
+ * reach it. So the fork reads the list itself. */
 struct Json {
     enum class Type { null, boolean, number, string, array, object };
     Type type = Type::null;
@@ -231,6 +233,11 @@ private:
                 }
                 code = 0x10000 + ((code - 0xd800) << 10) + (low - 0xdc00);
             }
+            /* A lone surrogate is no character, and a NUL would cut the text
+             * short in the log and the status line: both become U+FFFD. */
+            if (code == 0 || (code >= 0xd800 && code < 0xe000)) {
+                code = 0xfffd;
+            }
             utf8(code, out);
             return true;
         }
@@ -360,7 +367,8 @@ Pick pick_release(std::string_view json, std::string_view current, std::string_v
     offer.asset_name = chosen_zip->text("name");
     offer.asset_url = chosen_zip->text("browser_download_url");
     if (const Json* size = chosen_zip->find("size");
-        size != nullptr && size->type == Json::Type::number && size->number > 0)
+        size != nullptr && size->type == Json::Type::number && size->number > 0 &&
+        size->number < 1e15)  // past that, or infinite, the cast would be undefined
     {
         offer.asset_size = static_cast<std::size_t>(size->number);
     }

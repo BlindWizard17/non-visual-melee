@@ -167,6 +167,15 @@ void escapes_are_decoded() {
     assert(p.offer->page_url == "https://example.com/a");
     assert(p.offer->name == "\xf0\x9f\x8e\xae \t\\");
     assert(p.offer->asset_size == 1500);
+    /* A lone surrogate and a NUL become U+FFFD; a size past any zip's is left out. */
+    const Pick odd = pick(R"([{"tag_name": "a11y-v0.2.0", "name": "a\ud83cb\u0000c\udfae",)"
+                          R"( "assets": [{"name": "NonVisualMelee-Windows-x86_64.zip",)"
+                          R"( "browser_download_url": "https://example.com/z", "size": 1e999}]}])");
+    assert(odd.offer);
+    assert(odd.offer->name == "a\xef\xbf\xbd"
+                              "b\xef\xbf\xbd"
+                              "c\xef\xbf\xbd");
+    assert(odd.offer->asset_size == 0);
 }
 
 void the_zip_for_each_platform() {

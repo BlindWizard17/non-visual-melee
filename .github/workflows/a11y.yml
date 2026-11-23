@@ -35,7 +35,7 @@
 #
 # The Windows zip is the one that must ship: publish needs the Windows job to
 # pass, and takes whichever macOS zips were built. A failed macOS job leaves
-# its zip out of ci-latest for that commit, and the release notes say so; the
+# its zip out of ci-latest for that commit, and ci-latest's notes say so; the
 # run itself still shows as failed.
 #
 # Fork-owned file, so base merges never conflict here. The base port's own
@@ -63,6 +63,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # The update check finds a release by this name and MAC_ZIP's
+  # (asset_name in src/pc/a11y/update_check.cpp): rename them together.
   ZIP_NAME: NonVisualMelee-Windows-x86_64.zip
 
 jobs:

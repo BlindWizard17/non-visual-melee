@@ -7,7 +7,7 @@ aloud through your screen reader. In a match, announcements in two voices and
 audio cues tell you where you and your opponents are, warn of gaps and ledges,
 keep you up to date on damage and stocks, and lead you to items. You can play
 online over LAN and Direct Connect against both Non-Visual Melee and melee-pc
-players on the same version.
+players on the same melee-pc version.
 
 It doesn't claim parity with sighted players: the game's speed, the precision it
 asks for and the complexity of its stages make that out of reach. Even so, I
@@ -273,11 +273,13 @@ carrying a coin puts it back where it was.
 
 You can play VS. matches online against other Non-Visual Melee players and
 against sighted players using melee-pc, as long as you both have the same
-version and the same disc image. Both are found under VS. Mode, Online.
+melee-pc version and the same disc image. Both are found under VS. Mode,
+Online.
 
-Each Non-Visual Melee release names the melee-pc version it plays with, at the
-top of its release notes: a melee-pc player needs that version, and another
-Non-Visual Melee player a release that names the same one.
+Non-Visual Melee numbers its releases apart from melee-pc. Each release names
+the melee-pc version it plays with, at the top of its release notes: a melee-pc
+player needs that version, and another Non-Visual Melee player a release that
+names the same one.
 
 ### How it works
 

@@ -20,3 +20,8 @@ Spec: `.scratch/versioned-releases/spec.md`. The maintainer runs `/release` with
 The release is published, and the maintainer's findings are recorded below, each fixed or filed as its own issue.
 
 ## Comments
+
+### Review of issues 01 to 06 (2026-11-23), left for the maintainer
+
+- **A refused check speaks GitHub's own message** (`src/pc/a11y/update_hooks.cpp`, `update_check.cpp`'s `pick_release`). On Windows the base port's WinHTTP fetch ignores the HTTP status, so GitHub's rate limit (60 unauthenticated requests an hour per address) reaches the fork's parser, which now reports it as a failed check, where the base port said "up to date". The status line, the reader and `melee-pc.log` then carry the whole message: "Could not check for updates: API rate limit exceeded for <the player's IP address>. (But here's the good news: Authenticated requests get a higher rate limit. ...)". Options: keep it; cut it at its first sentence (still the address); or a fixed phrase of the fork's for any refusal, such as "Could not check for updates: GitHub refused the check, try again later." Recommended: the fixed phrase, which keeps the address out of logs players send back.
+- **The update banner says the version three times**: "Update available: 0.1.1", the title "Non-Visual Melee 0.1.1 beta", then "A newer version of Non-Visual Melee is available (0.1.1). Download ...". The screen shows all three; the fork owns the description's words (`update_check.cpp`'s `description`), so it could drop its version. Recommended: judge it by ear with the kept `0.0.0` zip above, then decide.

@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 A release fast-forwards `master` to `dev`, tags it `a11y-v<version>` and pushes. The tag's run of `.github/workflows/a11y.yml` checks the tag, builds the Windows zip and creates the release as a **draft**, invisible to players; this skill checks the draft and publishes it on the maintainer's yes (ADR-0011, `CLAUDE.md`'s "Remotes and branches"). `<version>` is the fork version, `src/pc/a11y/FORK_VERSION`; the base version is the first line of the root `VERSION`. `<scratch>` is a folder of the session's scratchpad.
 
-Invoking the skill is the maintainer's leave to push `dev`, `master` and the release's tag, and nothing else. Deleting anything on GitHub waits for their yes.
+Invoking the skill is the maintainer's leave to push `dev`, `master` and the release's tag in step 4, and to re-run the tag's failed jobs. Deleting anything on GitHub waits for their yes.
 
 Verify is not part of a release. Say once, as you start, that the maintainer may ask for the `verify` skill before the release goes ahead.
 
@@ -21,7 +21,7 @@ git rev-parse dev origin/dev master origin/master
 git merge-base --is-ancestor master dev
 ```
 
-Ready when: the current branch is `dev` with nothing in `git status --porcelain`; `dev` equals `origin/dev` and `master` equals `origin/master`; the ancestor check exits 0; and `CHANGELOG.md`'s `## Unreleased` holds entries under `### New`, `### Changed` or `### Fixed`. Otherwise stop and say which failed. An unpushed `dev` is pushed by the maintainer, or with their leave. A failed ancestor check means `master` holds a hotfix not yet merged into `dev`, which the hotfix's step 8 does.
+Ready when: the current branch is `dev` with nothing in `git status --porcelain`; `dev` equals `origin/dev` and `master` equals `origin/master`; the ancestor check exits 0; and `CHANGELOG.md`'s `## Unreleased` holds entries under `### New`, `### Changed` or `### Fixed`. Otherwise stop and say which failed; for an unpushed `dev`, ask whether to push it first. A failed ancestor check means `master` holds a hotfix not yet merged into `dev`, which the hotfix's step 8 does.
 
 ### 2. Ask for the bump
 
@@ -48,7 +48,7 @@ git switch dev
 
 A refusal (`release_notes: refused, <check>: <why>`) comes before any push. Put `master` back with `git switch dev` and `git branch -f master origin/master`, fix the problem on `dev` (amending the unpushed release commit), and run this step again.
 
-`--atomic` pushes the three refs together or none of them, so the tag never reaches GitHub without `master` holding its commit. The push to `dev` also rebuilds `ci-latest`, in a run of its own.
+`--atomic` pushes the three refs together or none of them, so the tag never reaches GitHub without `master` holding its commit. A failed push therefore changed nothing on GitHub: after a network error, run the push again; after a rejection, `git tag -d a11y-v<version>` and put `master` back as for a refusal, find out what moved on GitHub, and run this step again once it is settled. The push to `dev` also rebuilds `ci-latest`, in a run of its own.
 
 ### 5. Watch the tag's run
 
@@ -64,7 +64,7 @@ The run is listed within seconds of the push; list again until it is. The watch 
 ```
 gh release view a11y-v<version> --json name,isDraft,isPrerelease,assets --jq '{name,isDraft,isPrerelease,assets:[.assets[].name]}'
 gh release view a11y-v<version> --json body --jq .body > <scratch>/draft-<version>.md
-diff -B <scratch>/notes-<version>.md <scratch>/draft-<version>.md
+diff -B --strip-trailing-cr <scratch>/notes-<version>.md <scratch>/draft-<version>.md
 gh release download a11y-v<version> -p NonVisualMelee-Windows-x86_64.zip -D <scratch>/release-<version>
 python -m zipfile -l <scratch>/release-<version>/NonVisualMelee-Windows-x86_64.zip
 ```
@@ -109,7 +109,7 @@ Say which job failed and quote its error. A run never replaces a release, draft 
 
 - **"Check the release" failed**: `gh run view <databaseId> --log-failed | grep "release_notes: refused"` names each failed check. Nothing was built; the tag is on GitHub with no release.
 - **"Windows (x86_64)" failed**: no draft exists; `gh run view <databaseId> --log-failed` has the error. A failure that is not the code's (a runner never acquired, a download timing out) is re-run with `gh run rerun <databaseId> --failed`, then watched again (step 5), with nothing deleted.
-- **"Draft the release" failed**: when `gh release view a11y-v<version>` finds a draft, it was created before the failure, and a re-run is refused until the draft is deleted. When the failure is not the code's, delete the draft alone (`gh release delete a11y-v<version> --yes`, which keeps the tag), then `gh run rerun <databaseId> --failed`.
+- **"Draft the release" failed**: when `gh release view a11y-v<version>` finds a draft, it was created before the failure, and a re-run is refused until the draft is deleted. When the failure is not the code's, ask the maintainer's yes to delete the draft alone (`gh release delete a11y-v<version> --yes`, which keeps the tag), then `gh run rerun <databaseId> --failed`.
 - **The draft is wrong** (step 6), or the maintainer declined it.
 
 To start again, ask the maintainer's yes for each removal, naming it:
