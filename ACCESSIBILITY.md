@@ -23,20 +23,24 @@ included.
 
 ### What is included
 
-- **Playable modes.** With the features below, these modes are accessible:
-  - **1P Mode:** Training Mode and Multi-Man Melee.
-  - **VS. Mode on one computer:** Melee and Special Melee.
-  - **VS. Mode online:** Direct Connect with a friend's connect code, and LAN
-    play with players on the same network.
+#### Playable modes
+
+With the features below, these modes are accessible:
+
+- **1P Mode:** Training Mode and Multi-Man Melee.
+- **VS. Mode on one computer:** Melee and Special Melee.
+- **VS. Mode online:** Direct Connect with a friend's connect code, and LAN
+  play with players on the same network.
+
+#### Menus and game screens
+
 - **Port menus.** The launcher, which opens before the game, and the port menu,
   opened in game with F1 or Back on a controller, are read aloud. They hold
   melee-pc's own settings, such as the master, music and sound effect volumes
   and controller remapping.
 - **Update check.** As it opens, the launcher looks for a newer release of
   Non-Visual Melee and, when there is one, says "Update available" with its
-  version; Open release page takes you to it in your browser. Check for
-  updates, in the Launcher category of its Settings, turns this off, and the
-  Updates row there checks at once and says whether you are up to date.
+  version; Open release page takes you to it in your browser.
 - **Accessibility settings.** An Accessibility category in both menus holds
   Non-Visual Melee's own settings: switches for speech and the audio cues, each
   cue's volume, and the voices of the match announcements with their rate and
@@ -45,30 +49,6 @@ included.
 - **The game's menus.** The main menu and the menus under it, such as 1P Mode
   and VS. Mode, say each screen's name, the option you are on and the game's
   description of it.
-  - **Options.** Sound, Screen Display, Language, Erase Data and Rumble are
-    read. Switching the game to Japanese makes the game's own text Japanese,
-    such as the menus' descriptions, and speech can read it only in part;
-    Non-Visual Melee's own words stay English.
-  - **Language.** Left and right choose between Japanese and English, and A
-    switches the game to the one you are on. The menus then start again on
-    Options with Language hovered, and the change is said. To switch back, A
-    opens Language again, left or right goes to English and A confirms.
-  - **Erase Data.** Up and down move through the kinds of data, each with the
-    game's description, and A opens the prompt "Erase?", which starts on No:
-    left and right choose, A confirms. Erase All asks a second time, "Are you
-    sure?", again starting on No. Nothing is said once data is erased: the
-    game's erase sound is the confirmation. A row you have erased says
-    "erased" until you leave the screen, and A on it does nothing.
-  - **Rumble.** The screen opens with each plugged-in controller's rumble, such
-    as "P1: On", and A on any controller switches its own rumble. A controller
-    plugged in or unplugged while the screen is up is said. Beside the
-    controllers is the list of names made in Name Entry, each with a rumble
-    setting of its own, used instead of the controller's when a player plays
-    under that name. Once there are names, right takes your controller into
-    the list, saying "Names" and the name you are on with its setting, and
-    left takes it back to its own rumble. Up and down move through the names,
-    and A switches the name's rumble. The list has one cursor, shared by every
-    controller in it. Name Entry itself is not read yet.
 - **Character select and stage select.** On these screens the game has you move
   a free cursor around the screen rather than step through a list. Here the
   D-pad steps the cursor from one thing on the screen to the next, saying where
@@ -83,45 +63,55 @@ included.
   game's detailed statistics: Up and Down read the rows of a page, and Left and
   Right switch between players, and Z says the summary of the player you are
   on.
-- **Match announcements.** During a match, two voices of their own, beside your
-  screen reader, tell you what the game's display shows: your voice speaks about
-  you, and the opponents' voice about everyone else, teammates included.
-  - **Damage.** Each player's damage once it settles, either on every change or
-    only when it passes a set interval.
-  - **Stocks.** Each stock lost.
-  - **Items.** Each item a player takes, in that player's voice. Your screen
-    reader names each item as it appears.
-  - **Time left.** In a timed match, your screen reader says the time left at
-    each whole minute and at 30 seconds.
-  - **The voices.** Windows' own OneCore voices, the ones Narrator uses, Zira
-    for you and Mark for the opponents by default.
-  - **The settings.** In the accessibility settings you can pick any OneCore
-    voice installed on your computer, set each one's rate and volume, and
-    choose what is announced.
-- **Audio cues.** During a match, sounds of their own tell you where things
-  are. Each can be switched off and its volume set in the accessibility
-  settings.
-  - **Your position.** A tick that pans left and right with where you are on
-    the stage, rises in pitch the higher you are, and quickens as the nearest
-    opponent gets closer.
-  - **Opponent's position.** A lower pulse that says where the nearest
-    opponent is from you: panned to their side and higher in pitch when they
-    are above you. Switched to the stage instead, it pans and pitches with
-    where they are on the stage, as your own tick does.
-  - **Gap warning.** A low hum while there is no floor below you, such as
-    when you are off the stage: fall from there and you are knocked out
-    unless you recover.
-  - **Ledge warning.** A pulsing chord on the side of a nearby edge of the
-    floor below you that has a lethal gap past it, louder and nearer the middle
-    as you get closer to it. An edge with more floor below it, such as a
-    platform's, gives no warning.
-  - **Item appearance cue.** A sound where each item appears, from you by
-    default: panned to the side it is on and higher in pitch when it is
-    above you. With Items relative to you off, it pans and pitches with
-    where the item is on the stage instead. 
-  - **Item's position cue.** A pulse at a steady pace from the nearest item
-    lying loose, placed as the item appearance cue is, from you or on the
-    stage. It quickens while the item is within reach.
+
+#### Gameplay
+
+##### Match announcements
+
+During a match, two voices of their own, beside your screen reader, tell you
+what the game's display shows: your voice speaks about you, and the opponents'
+voice about everyone else, teammates included.
+
+- **Damage.** Each player's damage once it settles, either on every change or
+  only when it passes a set interval.
+- **Stocks.** Each stock lost.
+- **Items.** Each item a player takes, in that player's voice. Your screen
+  reader names each item as it appears.
+- **Time left.** In a timed match, your screen reader says the time left at
+  each whole minute and at 30 seconds.
+- **The voices.** Windows' own OneCore voices, the ones Narrator uses, Zira
+  for you and Mark for the opponents by default.
+- **The settings.** In the accessibility settings you can pick any OneCore
+  voice installed on your computer, set each one's rate and volume, and
+  choose what is announced.
+
+##### Audio cues
+
+During a match, sounds of their own tell you where things
+are. Each can be switched off and its volume set in the accessibility
+settings.
+
+- **Your position.** A tick that pans left and right with where you are on
+  the stage, rises in pitch the higher you are, and quickens as the nearest
+  opponent gets closer.
+- **Opponent's position.** A lower pulse that says where the nearest
+  opponent is from you: panned to their side and higher in pitch when they
+  are above you. Switched to the stage instead, it pans and pitches with
+  where they are on the stage, as your own tick does.
+- **Gap warning.** A low hum while there is no floor below you, such as
+  when you are off the stage: fall from there and you are knocked out
+  unless you recover.
+- **Ledge warning.** A pulsing chord on the side of a nearby edge of the
+  floor below you that has a lethal gap past it, louder and nearer the middle
+  as you get closer to it. An edge with more floor below it, such as a
+  platform's, gives no warning.
+- **Item appearance cue.** A sound where each item appears, from you by
+  default: panned to the side it is on and higher in pitch when it is
+  above you. With Items relative to you off, it pans and pitches with
+  where the item is on the stage instead. 
+- **Item's position cue.** A pulse at a steady pace from the nearest item
+  lying loose, placed as the item appearance cue is, from you or on the
+  stage. It quickens while the item is within reach.
 
 ### What is not included
 
