@@ -148,11 +148,11 @@ These parts of the game are not accessible yet:
   Windows voice speaks instead.
 - **Windows OneCore voices** for the match announcements. Windows comes with
   some; more can be added in Windows' speech settings.
-- **A graphics card that supports Direct3D 12 or Direct3D 11.** . Any Intel graphics from 2014
+- **A graphics card that supports Direct3D 12 or Direct3D 11.** Any Intel graphics from 2014
   (Broadwell) on, AMD GCN or newer, or NVIDIA Fermi or newer will do. The CPU
   needs are light.
 - **A controller or a keyboard.** Any gamepad SDL3 knows (Xbox, PlayStation, Switch Pro, …), and an
-  official GameCube controller adapter is read directly. 
+  official GameCube controller adapter is read directly.
 
 ## Getting started
 
