@@ -16,6 +16,9 @@ namespace a11y::updates {
 /* A release's tag is this and a whole fork version, "a11y-v0.1.1". */
 inline constexpr std::string_view kTagPrefix = "a11y-v";
 
+/* The error for a list GitHub refused, its own message left out. */
+inline constexpr const char* kRefused = "GitHub refused the check, try again later.";
+
 /* The release on offer. */
 struct Offer {
     std::string version;  /* "0.1.1" */
@@ -43,7 +46,7 @@ struct Pick {
  *   release once it is ready for every player,
  * - holding the zip named asset; an empty asset is a platform without zips.
  * A list that is not a JSON array is an error: GitHub's refusals, such as its
- * rate limit, are an object whose message becomes the error. */
+ * rate limit, are an object with a message, which becomes kRefused. */
 Pick pick_release(std::string_view json, std::string_view current, std::string_view asset);
 
 /* The fork's zip for a platform and architecture named as updater.cpp names

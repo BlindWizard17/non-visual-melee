@@ -152,7 +152,8 @@ void an_unreadable_list_is_an_error() {
     const Pick refused = pick(
         R"({"message": "API rate limit exceeded for 1.2.3.4.", "documentation_url": "https://docs.github.com"})");
     assert(!refused.offer);
-    assert(refused.error == "API rate limit exceeded for 1.2.3.4.");
+    assert(refused.error == a11y::updates::kRefused);
+    assert(refused.error.find("1.2.3.4") == std::string::npos);
     assert(!pick(R"({"id": 1})").error.empty());
 }
 
@@ -290,8 +291,10 @@ void the_hooks_fill_the_updaters_state(const std::string& folder) {
     set_list_file("");
     pc_a11y_update_result(R"({"message": "Not Found"})", state);
     assert(state.status == Status::Failed);
-    assert(state.message == "Could not check for updates: Not Found");
-    assert(g_logged == "[a11y] update check: Could not check for updates: Not Found");
+    const std::string refused =
+        std::string("Could not check for updates: ") + a11y::updates::kRefused;
+    assert(state.message == refused);
+    assert(g_logged == "[a11y] update check: " + refused);
 }
 
 void the_hooks_name_the_fork() {

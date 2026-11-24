@@ -328,8 +328,11 @@ Pick pick_release(std::string_view json, std::string_view current, std::string_v
         return pick;
     }
     if (root.type != Json::Type::array) {
-        const std::string message = root.text("message");
-        pick.error = message.empty() ? "the release list could not be read" : message;
+        /* GitHub's own message is left out: its rate limit's names the
+         * player's IP address, which would reach the status line, the
+         * speech and the log players send back. */
+        pick.error =
+            root.find("message") != nullptr ? kRefused : "the release list could not be read";
         return pick;
     }
     /* A build's own version always parses (a11y.cmake refuses any other);
