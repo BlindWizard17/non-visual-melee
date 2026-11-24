@@ -12,12 +12,15 @@ players on the same melee-pc version.
 It doesn't claim parity with sighted players: the game's speed, the precision it
 asks for and the complexity of its stages make that out of reach. Even so, I
 think you can have a lot of fun with it. The current best expereince is against
-a single opponent on a simple stage with items set to low or none.
+a single opponent on a simple stage with items set to low or none. See it in
+action on this [demo video](https://youtu.be/lR8rautqM7Q).
 
 This is a beta. Things will change, not every part of the game is supported yet,
 and some modes, such as Adventure and Target Test, may never be fully supported.
 melee-pc itself is also a beta, so expect issues in the game itself, crashes
-included.
+included. For questions, bug reports, feature ideas and perhaps finding people
+to play with online, check out Non-Visual
+Melee's [discord channel](https://discord.gg/muRgv2GYHe) on the Accessibility disco server.
 
 ## Features
 
