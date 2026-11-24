@@ -279,6 +279,9 @@ bool pc_a11y_update_list_file(std::string& body);
 void pc_a11y_update_result(const std::string& body, pc::updater::UpdateState& state);
 /* The fork's releases page, for the browser when no release is on offer. */
 const char* pc_a11y_update_releases_page();
+/* The fork's Discord channel, which the launcher's Discord buttons open in
+ * place of the base port's server, for every player. */
+const char* pc_a11y_discord_url();
 /* Where the launcher's title bar and the port menu's show the app version:
  * "0.1.0 (local build, Melee-PC v0.4.2)" (a11y::shown_version). */
 std::string pc_a11y_shown_version();

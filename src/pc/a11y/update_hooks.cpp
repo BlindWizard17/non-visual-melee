@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* The update check's hand-offs from src/pc/updater.cpp and
  * src/pc/launcher.cpp (a11y_hooks.h), on update_check.cpp's choice and
- * words. They hold whatever the Accessibility switch says: a fork build
- * follows the fork's releases for every player. */
+ * words, and the launcher's Discord link. They hold whatever the
+ * Accessibility switch says: a fork build follows the fork's releases and
+ * leads to the fork's channel for every player. */
 #include "a11y_hooks.h"
 #include "fork_version.hpp"
 #include "pc/pc.h"
@@ -60,6 +61,12 @@ const char* pc_a11y_update_api_url() {
 
 const char* pc_a11y_update_releases_page() {
     return "https://github.com/" A11Y_REPOSITORY "/releases/latest";
+}
+
+/* Non-Visual Melee's channel on the accessibility modding server, also
+ * linked from ACCESSIBILITY.md. */
+const char* pc_a11y_discord_url() {
+    return "https://discord.gg/muRgv2GYHe";
 }
 
 bool pc_a11y_update_list_file(std::string& body) {

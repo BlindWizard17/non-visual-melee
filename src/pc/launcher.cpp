@@ -762,7 +762,7 @@ class Launcher final : public Rml::EventListener {
         }
         if (id == "discord" || id == "settings-discord") {
             status("Opening Discord in browser...");
-            SDL_OpenURL("https://discord.gg/aurt34svq");
+            SDL_OpenURL(pc_a11y_discord_url());  // a11y: the fork's channel
             return;
         }
         if (index_of(tab_ids, id) >= 0) {
