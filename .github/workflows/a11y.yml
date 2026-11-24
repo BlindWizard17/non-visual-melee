@@ -64,7 +64,8 @@ concurrency:
 
 env:
   # The update check finds a release by this name and MAC_ZIP's
-  # (asset_name in src/pc/a11y/update_check.cpp): rename them together.
+  # (asset_name in src/pc/a11y/update_check.cpp), and the release notes link
+  # it (ZIP_NAME in tools/a11y/release_notes.py): rename them together.
   ZIP_NAME: NonVisualMelee-Windows-x86_64.zip
 
 jobs:

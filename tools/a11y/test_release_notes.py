@@ -127,13 +127,20 @@ def test_good_release():
     check(result.code == 0, f"a good release refused: {result.err}")
     notes = result.notes or ""
     url = "https://github.com/ohylli/non-visual-melee/blob/a11y-v0.2.0"
-    check(notes.startswith("Plays online with Non-Visual Melee 0.2.0 and Melee-PC v0.4.2."),
-          f"notes do not open with the pairing: {notes[:120]!r}")
+    download = ("https://github.com/ohylli/non-visual-melee/releases/download/a11y-v0.2.0/"
+                "NonVisualMelee-Windows-x86_64.zip")
+    check(notes.startswith("Non-Visual Melee makes Super Smash Bros. Melee playable"),
+          f"notes do not open with the introduction: {notes[:120]!r}")
     check(f"({url}/ACCESSIBILITY.md)" in notes, "no link to ACCESSIBILITY.md at the tag")
     check(f"({url}/CHANGELOG.md)" in notes, "no link to CHANGELOG.md at the tag")
+    check(f"[Download Non-Visual Melee 0.2.0 for Windows]({download})" in notes,
+          "no download link to the release's zip")
     check("Windows 10" in notes and "screen reader" in notes and "disc image" in notes,
           "the requirements missing")
-    order = [notes.find(s) for s in ("Plays online", "ACCESSIBILITY.md", "## Changes",
+    order = [notes.find(s) for s in ("ACCESSIBILITY.md", "## Download", "[Download",
+                                     "Windows 10",
+                                     "plays against Non-Visual Melee 0.2.0 and Melee-PC v0.4.2",
+                                     "## Changes",
                                      "### New", "- Stage select", "### Fixed",
                                      "- The ledge warning", "## Full changelog",
                                      "CHANGELOG.md")]

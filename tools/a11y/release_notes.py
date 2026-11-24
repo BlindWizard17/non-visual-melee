@@ -22,11 +22,12 @@ one line per failed check:
              push access to see drafts.
 
 When every check passes it writes the notes (to FILE, or to standard output)
-in this order: "Plays online with Non-Visual Melee <version> and Melee-PC
-<base>.", the requirements and a link to ACCESSIBILITY.md at the tag; under
-"## Changes", the version's section of CHANGELOG.md without its heading or
-its "Plays online" line; under "## Full changelog", a link to CHANGELOG.md at
-the tag. --outputs appends "version=<version>" and "title=<title>" to FILE,
+in this order: what Non-Visual Melee is, for a reader given the release's
+link, and a link to ACCESSIBILITY.md at the tag; under "## Download", a link
+to the release's Windows zip, the requirements and "Online, it plays against
+Non-Visual Melee <version> and Melee-PC <base>"; under "## Changes", the
+version's section of CHANGELOG.md without its heading or its "Plays online"
+line; under "## Full changelog", a link to CHANGELOG.md at the tag. --outputs appends "version=<version>" and "title=<title>" to FILE,
 as GitHub's $GITHUB_OUTPUT takes them; the title is "Non-Visual Melee
 <version> beta" while the version is 0.x.
 
@@ -47,6 +48,15 @@ FORK_VERSION_FILE = "src/pc/a11y/FORK_VERSION"
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 HEADING_RE = re.compile(r"^## (.*?)\s*$")
 VERSION_HEADING_RE = re.compile(r"^(\d+\.\d+\.\d+) \((\d{4}-\d{2}-\d{2})\)$")
+
+# The release's one asset: a11y.yml's ZIP_NAME. The notes link it directly,
+# since GitHub's Assets list can be collapsed and is hard to find by ear.
+ZIP_NAME = "NonVisualMelee-Windows-x86_64.zip"
+
+INTRODUCTION = (
+    "Non-Visual Melee makes Super Smash Bros. Melee playable by blind players: your "
+    "screen reader reads the menus, and voices and audio cues guide you through matches."
+)
 
 REQUIREMENTS = (
     "It needs Windows 10 or 11 (64-bit), a screen reader such as NVDA, and your own "
@@ -172,11 +182,21 @@ def release_title(fork):
 
 def release_notes(fork, base, changes, tag, repo):
     at_tag = f"https://github.com/{repo}/blob/{tag}"
+    download = f"https://github.com/{repo}/releases/download/{tag}/{ZIP_NAME}"
     return (
-        f"Plays online with Non-Visual Melee {fork} and Melee-PC {base}.\n"
+        f"{INTRODUCTION}\n"
         "\n"
-        f"{REQUIREMENTS} The [Non-Visual Melee guide]({at_tag}/ACCESSIBILITY.md) says "
-        "what is accessible and how to get started.\n"
+        f"The [Non-Visual Melee guide]({at_tag}/ACCESSIBILITY.md) says what is accessible "
+        "and how to get started. The download includes it as readme.html.\n"
+        "\n"
+        "## Download\n"
+        "\n"
+        f"[Download Non-Visual Melee {fork} for Windows]({download}) (a zip file).\n"
+        "\n"
+        f"{REQUIREMENTS}\n"
+        "\n"
+        f"Online, it plays against Non-Visual Melee {fork} and Melee-PC {base}, the PC "
+        "version of Melee that Non-Visual Melee is built on.\n"
         "\n"
         "## Changes\n"
         "\n"
@@ -184,7 +204,8 @@ def release_notes(fork, base, changes, tag, repo):
         "\n"
         "## Full changelog\n"
         "\n"
-        f"[CHANGELOG.md]({at_tag}/CHANGELOG.md) has the changes of every release.\n"
+        f"[CHANGELOG.md]({at_tag}/CHANGELOG.md) has the changes of every release. The "
+        "download includes it as changelog.html.\n"
     )
 
 

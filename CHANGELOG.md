@@ -6,8 +6,7 @@ What changed in each release of Non-Visual Melee, newest first.
 
 ### New
 
-The first beta of Non-Visual Melee, which makes Super Smash Bros. Melee
-playable by blind players. What it reads and plays:
+The first beta. What it reads and plays:
 
 - **Modes:** Training, Multi-Man Melee, and VS. Melee and Special Melee, on one
   computer or online.
