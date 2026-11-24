@@ -2,7 +2,9 @@
 
 What changed in each release of Non-Visual Melee, newest first.
 
-## Unreleased
+## 0.1.0 (2026-11-24)
+
+Plays online with Melee-PC v0.4.2.
 
 ### New
 
