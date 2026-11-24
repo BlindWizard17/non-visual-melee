@@ -175,12 +175,18 @@ These parts of the game are not accessible yet:
   Voice settings lets you hear and choose the two voices and set their rate and
   volume.
 - **Practise in Training Mode.** In 1P Mode, choose Training Mode and a simple
-  stage such as Final Destination: one flat floor with no platforms is the
-  easiest place to get used to the cues. Final Destination is locked at first;
-  Unlock everything, in the Gameplay category of the launcher's Settings,
-  unlocks it along with all the characters and other stages. The Training
-  menu's Item row brings an item in beside you, a good way to learn the item
-  cues.
+  stage. Pokémon Stadium, open from the start, is the easiest place to get
+  used to the cues: a wide, flat main floor with two low platforms above it
+  and no hazards. In other modes it changes shape now and then, but never in
+  Training Mode; in a VS. match, Hazardless stages, in the Gameplay category
+  of the launcher's Settings or of the port menu, keeps it as it is. Yoshi's
+  Story, also open from the start, is smaller and never changes: a good next
+  step for learning the ledges. On both stages you start on one of the
+  platforms above the main floor; tap down on the control stick to drop
+  through it. Final Destination, one flat floor with no platforms at all, is
+  locked at first; Unlock everything, in the Gameplay category, unlocks it
+  along with all the characters and other stages. The Training menu's Item
+  row brings an item in beside you, a good way to learn the item cues.
 - **Play a match.** When you are ready, choose Melee in VS. Mode and set up a
   match against a CPU opponent.
 
